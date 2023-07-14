@@ -75,7 +75,7 @@ void setup() {
   envelope2[238].y = env2CoordsEnd.y;
 
   initButtons();
-  
+
 }
 
 void loop() {
@@ -134,11 +134,15 @@ void btnClear1_pressAction(void) {
   if (btnClear1.justPressed()) {
     btnClear1.drawSmoothButton(!btnClear1.getState(), 1, TFT_MAGENTA, "clear ^");
     btnClear1.setPressTime(millis());
+    btnClear1.drawSmoothButton(!btnClear1.getState(), 1, TFT_MAGENTA, "clear ^");
+    btnClear1.setPressTime(millis());
   }
 }
 
 void btnClear2_pressAction(void) {
   if (btnClear2.justPressed()) {
+    btnClear2.drawSmoothButton(!btnClear2.getState(), 1, TFT_MAGENTA, "clear v");
+    btnClear2.setPressTime(millis());
     btnClear2.drawSmoothButton(!btnClear2.getState(), 1, TFT_MAGENTA, "clear v");
     btnClear2.setPressTime(millis());
   }
@@ -148,12 +152,12 @@ void initButtons() {
   // 119, 2, 119, 159
   uint16_t x = 60;
   uint16_t y = 119;
-  btnClear1.initButtonUL(innerRectStart.x + 10, innerRectStart.y, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_RED, TFT_BLACK, (char*)"clear ^", 1);
+  btnClear1.initButtonUL(innerRectStart.x + 10, innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_BLACK, TFT_GREEN, (char*)"clear ^", 1);
   btnClear1.setPressAction(btnClear1_pressAction);
   btnClear1.drawSmoothButton(false, 1, TFT_BLACK);  // 3 is outline width, TFT_BLACK is the surrounding background colour for anti-aliasing
 
   y += 20;
-  btnClear2.initButtonUL(tft.width() - (10 + BUTTON_W), innerRectStart.y, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_BLACK, TFT_GREEN, (char*)"clear v", 1);
+  btnClear2.initButtonUL(tft.width() - (10 + BUTTON_W), innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_BLACK, TFT_GREEN, (char*)"clear v", 1);
   btnClear2.setPressAction(btnClear2_pressAction);
   btnClear2.drawSmoothButton(false, 1, TFT_BLACK);  // 3 is outline width, TFT_BLACK is the surrounding background colour for anti-aliasing
 }
