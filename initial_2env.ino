@@ -89,11 +89,8 @@ void loop() {
 
   if (pressed) {
 
-    Serial.printf("env1Coords %d,%d -> %d,%d\n", env1CoordsStart.x, env1CoordsStart.y, env1CoordsEnd.x, env1CoordsEnd.y);
-    Serial.printf("env2Coords %d,%d -> %d,%d\n", env2CoordsStart.x, env2CoordsStart.y, env2CoordsEnd.x, env2CoordsEnd.y);
-
     if ((y > env1CoordsStart.y && y < env1CoordsEnd.y) && (x > env1CoordsStart.x && x < env1CoordsEnd.x)) {
-      Serial.printf("ENV1 x/y:%d,%d\n", x,y);
+      //Serial.printf("ENV1 x/y:%d,%d\n", x,y);
       envelope1[x] = {x,y};
       tft.fillRect(env1CoordsStart.x, env1CoordsStart.y, env1CoordsEnd.x, env1CoordsEnd.y, TFT_BLACK);
       std::vector<std::pair<int, coords>> sortedPairs(envelope1.begin(), envelope1.end());
@@ -104,7 +101,7 @@ void loop() {
       }
     } else {
       if ((y > env2CoordsStart.y && y < outerRectEnd.y) && (x > env2CoordsStart.x && x < outerRectEnd.x)){
-        Serial.printf("ENV2 x/y:%d,%d\n", x,y);
+        //Serial.printf("ENV2 x/y:%d,%d\n", x,y);
         envelope2[x] = {x,y};
         tft.fillRect(env2CoordsStart.x, env2CoordsStart.y, env2CoordsEnd.x, (env2CoordsEnd.y - env2CoordsStart.y) + 2, TFT_BLACK);
         std::vector<std::pair<int, coords>> sortedPairs(envelope2.begin(), envelope2.end());
@@ -149,15 +146,11 @@ void btnClear2_pressAction(void) {
 }
 
 void initButtons() {
-  // 119, 2, 119, 159
-  uint16_t x = 60;
-  uint16_t y = 119;
-  btnClear1.initButtonUL(innerRectStart.x + 10, innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_BLACK, TFT_GREEN, (char*)"clear ^", 1);
+  btnClear1.initButtonUL(innerRectStart.x + 10, innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_MAGENTA, TFT_BLACK, TFT_MAGENTA, (char*)"clear ^", 1);
   btnClear1.setPressAction(btnClear1_pressAction);
   btnClear1.drawSmoothButton(false, 1, TFT_BLACK);  // 3 is outline width, TFT_BLACK is the surrounding background colour for anti-aliasing
 
-  y += 20;
-  btnClear2.initButtonUL(tft.width() - (10 + BUTTON_W), innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_WHITE, TFT_BLACK, TFT_GREEN, (char*)"clear v", 1);
+  btnClear2.initButtonUL(tft.width() - (10 + BUTTON_W), innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_MAGENTA, TFT_BLACK, TFT_MAGENTA, (char*)"clear v", 1);
   btnClear2.setPressAction(btnClear2_pressAction);
   btnClear2.drawSmoothButton(false, 1, TFT_BLACK);  // 3 is outline width, TFT_BLACK is the surrounding background colour for anti-aliasing
 }
