@@ -66,7 +66,7 @@ void setup() {
   rectW = ((uint16_t)(tft.width() - 3));
   rectH = 30;
 
-  env1CoordsStart = {(uint16_t)(outerRectStart.x + 1, 3)};
+  env1CoordsStart = {(uint16_t)(outerRectStart.x + 1), 3};
   env1CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(innerRectStart.y - 2)};
 
   env2CoordsStart = {(uint16_t)(outerRectStart.x + 1), (uint16_t)(innerRectStart.y + 30)};
@@ -76,16 +76,7 @@ void setup() {
   tft.drawRect(outerRectStart.x, outerRectStart.x, outerRectEnd.x, outerRectEnd.y, TFT_BLUE);
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
 
-  // add the inital points
-  envelope1[0].x = env1CoordsStart.x;
-  envelope1[0].y = env1CoordsEnd.y;
-  envelope2[0].x = env2CoordsStart.x;
-  envelope2[0].y = env2CoordsEnd.y;
-
-  envelope1[238].x = env1CoordsEnd.x;
-  envelope1[238].y = env1CoordsEnd.y;
-  envelope2[238].x = env2CoordsEnd.x;
-  envelope2[238].y = env2CoordsEnd.y;
+  initEnvelopes();
 
   initButtons();
 
@@ -140,10 +131,29 @@ void loop() {
   }
 }
 
+void initEnvelopes() {
+  // add the inital points
+  envelope1[0].x = env1CoordsStart.x;
+  envelope1[0].y = env1CoordsEnd.y;
+  envelope2[0].x = env2CoordsStart.x;
+  envelope2[0].y = env2CoordsEnd.y;
+
+  envelope1[238].x = env1CoordsEnd.x;
+  envelope1[238].y = env1CoordsEnd.y;
+  envelope2[238].x = env2CoordsEnd.x;
+  envelope2[238].y = env2CoordsEnd.y;
+}
+
 void btnClear1_pressAction(void) {
   if (btnClear1.justPressed()) {
     btnClear1.drawSmoothButton(!btnClear1.getState(), 1, TFT_MAGENTA, "clear ^");
     btnClear1.setPressTime(millis());
+
+    // clear data
+    tft.fillRect(env1CoordsStart.x, env1CoordsStart.y, env1CoordsEnd.x, env1CoordsEnd.y, TFT_BLACK);
+    envelope1.clear();
+    initEnvelopes();
+
     btnClear1.drawSmoothButton(!btnClear1.getState(), 1, TFT_MAGENTA, "clear ^");
     btnClear1.setPressTime(millis());
   }
@@ -153,6 +163,12 @@ void btnClear2_pressAction(void) {
   if (btnClear2.justPressed()) {
     btnClear2.drawSmoothButton(!btnClear2.getState(), 1, TFT_MAGENTA, "clear v");
     btnClear2.setPressTime(millis());
+
+    // clear data
+    tft.fillRect(env2CoordsStart.x, env2CoordsStart.y, env2CoordsEnd.x, (env2CoordsEnd.y - env2CoordsStart.y) + 2, TFT_BLACK);
+    envelope2.clear();
+    initEnvelopes();
+
     btnClear2.drawSmoothButton(!btnClear2.getState(), 1, TFT_MAGENTA, "clear v");
     btnClear2.setPressTime(millis());
   }
