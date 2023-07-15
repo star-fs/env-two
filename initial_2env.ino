@@ -1,3 +1,15 @@
+/*
+ by Star Morin / Autospkr, Labs 
+ Attribution 3.0 United States (CC BY 3.0 US) 
+
+ Share — copy and redistribute the material in any medium or format
+ Adapt — remix, transform, and build upon the material for any purpose, even commercially.
+ 
+ This license is acceptable for Free Cultural Works.
+ The licensor cannot revoke these freedoms as long as you follow the license terms.
+
+ https://creativecommons.org/licenses/by/3.0/us/legalcode
+*/
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <TFT_eWidget.h>
