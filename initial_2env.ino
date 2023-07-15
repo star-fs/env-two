@@ -67,7 +67,7 @@ void setup() {
   rectH = 30;
 
   env1CoordsStart = {(uint16_t)(outerRectStart.x + 1), 3};
-  env1CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(innerRectStart.y - 2)};
+  env1CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(innerRectStart.y - 4)};
 
   env2CoordsStart = {(uint16_t)(outerRectStart.x + 1), (uint16_t)(innerRectStart.y + 30)};
   env2CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(outerRectEnd.y - 2)};
@@ -133,15 +133,17 @@ void loop() {
 
 void initEnvelopes() {
   // add the inital points
-  envelope1[0].x = env1CoordsStart.x;
+  envelope1[0].x = env1CoordsStart.x + 2;
   envelope1[0].y = env1CoordsEnd.y;
   envelope2[0].x = env2CoordsStart.x;
   envelope2[0].y = env2CoordsEnd.y;
 
-  envelope1[238].x = env1CoordsEnd.x;
+  envelope1[238].x = env1CoordsEnd.x + 4;
   envelope1[238].y = env1CoordsEnd.y;
   envelope2[238].x = env2CoordsEnd.x;
   envelope2[238].y = env2CoordsEnd.y;
+
+  tft.drawRect(outerRectStart.x, outerRectStart.x, outerRectEnd.x, outerRectEnd.y, TFT_BLUE);
 }
 
 void btnClear1_pressAction(void) {
