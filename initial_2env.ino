@@ -18,6 +18,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "Free_Fonts.h"
+
 #define BUTTON_W 60
 #define BUTTON_H 26
 
@@ -75,11 +77,27 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.drawRect(outerRectStart.x, outerRectStart.x, outerRectEnd.x, outerRectEnd.y, TFT_BLUE);
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
+  tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
   initEnvelopes();
-
   initButtons();
+  drawDurationText();
 
+}
+
+void drawDurationText() {
+  uint16_t evnF1X = ((innerRectStart.x + 20 + BUTTON_W) + 2) + 26;
+  uint16_t evnF1Y = innerRectStart.y + 3;
+  uint16_t evnF2X = evnF1X;
+  uint16_t evnF2Y = evnF1Y + 18;
+  
+  tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
+  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.setCursor(evnF1X, evnF1Y);
+  tft.setTextFont(GLCD);
+  tft.print("0000");
+  tft.setCursor(evnF2X, evnF2Y);
+  tft.print("0000");
 }
 
 void loop() {
