@@ -54,6 +54,7 @@ uint16_t rectW;
 uint16_t rectH;
 
 int duration = 0;
+MCP4725 MCP(0x62, &Wire1);
 
 void setup() {
 
@@ -105,7 +106,7 @@ void outputLInterp(int env) {
   float x0,y0,x1,y1,xp,yp,interval,stepLen;
 
   coords last;
-  coords target = envelope1;
+  std::map<int, coords> target = envelope1;
 
   if (env == 2) {
     target = envelope2;
