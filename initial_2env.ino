@@ -18,6 +18,9 @@
 #include <vector>
 #include <algorithm>
 
+#include "Wire.h"
+#include "MCP4725.h"
+
 #include "Free_Fonts.h"
 
 #define BUTTON_W 60
@@ -50,6 +53,8 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
+int duration = 0;
+
 void setup() {
 
   Serial.begin(115200);
@@ -79,20 +84,61 @@ void setup() {
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
+  MCP.begin(26, 27);
+  Wire1.setClock(800000);
+  MCP.setValue(0);
+
+  if (!MCP.isConnected()) {
+    Serial.println("err");
+    while (1);
+  }
+
   initEnvelopes();
   initButtons();
   drawDurationText();
 
 }
 
+// trigger interupt handle 
+void outputLInterp(int env) {
+
+  float x0,y0,x1,y1,xp,yp,interval,stepLen;
+
+  coords last;
+  coords target = envelope1;
+
+  if (env == 2) {
+    target = envelope2;
+  }
+
+  // calculate the duration of a pixel
+  stepLen = duration / 240;
+
+  std::vector<std::pair<int, coords>> sortedPairs(envelope1.begin(), envelope1.end());
+  std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
+  for (const auto& pair : sortedPairs) {
+    x0 = last1.x;
+    y0 = last1.y;
+    x1 = pair.second.x;
+    x0 = pair.second.y;
+    for (int xp=x0;x <= (x1 - x0);xp++) {
+      yp = y0 + ((y1-y0)/(x1-x0)) * (xp - x0);
+      // set the output value to yp
+      MCP.setValue(yp);
+    }
+    last1 = pair.second;
+  }
+
+}
+
 void drawDurationText() {
   uint16_t evnF1X = ((innerRectStart.x + 20 + BUTTON_W) + 2) + 26;
-  uint16_t evnF1Y = innerRectStart.y + 3;
+  uint16_t evnF1Y = innerRectStart.y + 5;
   uint16_t evnF2X = evnF1X;
-  uint16_t evnF2Y = evnF1Y + 18;
+  uint16_t evnF2Y = evnF1Y + 14;
   
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(evnF1X, evnF1Y);
   tft.setTextFont(GLCD);
   tft.print("0000");
