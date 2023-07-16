@@ -117,8 +117,8 @@ void outputLInterp(int env) {
   std::vector<std::pair<int, coords>> sortedPairs(envelope1.begin(), envelope1.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
   for (const auto& pair : sortedPairs) {
-    x0 = last1.x;
-    y0 = last1.y;
+    x0 = last.x;
+    y0 = last.y;
     x1 = pair.second.x;
     x0 = pair.second.y;
     for (int xp=x0;x <= (x1 - x0);xp++) {
@@ -126,7 +126,7 @@ void outputLInterp(int env) {
       // set the output value to yp
       MCP.setValue(yp);
     }
-    last1 = pair.second;
+    last = pair.second;
   }
 
 }
