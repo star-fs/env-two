@@ -23,6 +23,13 @@
 
 #include "Free_Fonts.h"
 
+// https://github.com/jamon/pi-pico-pio-quadrature-encoder/blob/main/src/quadrature.pio.h
+#include "hardware/pio.h"
+#include "quadrature.pio.h"
+
+#define QUADRATURE_A_PIN 13
+#define QUADRATURE_B_PIN 14
+
 #define BUTTON_W 60
 #define BUTTON_H 26
 
@@ -85,14 +92,19 @@ void setup() {
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
-  MCP.begin(26, 27);
+  MCP.begin(14, 15);
   Wire1.setClock(800000);
   MCP.setValue(0);
 
   if (!MCP.isConnected()) {
-    Serial.println("err");
-    while (1);
+    Serial.println("failed to connect to MCP4725.\n");
   }
+
+  // buttons
+  pinMode(6, INPUT);
+  attachInterrupt(digitalPinToInterrupt(6), outputLInterpEnv1, HIGH);
+
+  // rotary encoders
 
   initEnvelopes();
   initButtons();
@@ -100,8 +112,19 @@ void setup() {
 
 }
 
+// interrupt handlers
+void outputLInterpEnv1() {
+  outputLInterp(1);
+}
+
+void outputLInterpEnv2() {
+  outputLInterp(2);
+}
+
 // trigger interupt handle 
 void outputLInterp(int env) {
+
+  Serial.print("outputLInterp triggered\n");
 
   float x0,y0,x1,y1,xp,yp,interval,stepLen;
 
@@ -125,10 +148,12 @@ void outputLInterp(int env) {
     for (int xp=x0;x <= (x1 - x0);xp++) {
       yp = y0 + ((y1-y0)/(x1-x0)) * (xp - x0);
       // set the output value to yp
+      Serial.printf("%d:");
       MCP.setValue(yp);
     }
     last = pair.second;
   }
+  Serial.print(">0<\n");
   MCP.setValue(0);
 }
 
