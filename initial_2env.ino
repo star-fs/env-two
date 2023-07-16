@@ -14,6 +14,7 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <TFT_eWidget.h>
+#include <RotaryEncoder.h>
 #include <map>
 #include <vector>
 #include <algorithm>
@@ -54,11 +55,16 @@ uint16_t rectW;
 uint16_t rectH;
 
 int duration = 0;
+
 MCP4725 MCP(0x62, &Wire1);
+
+RotaryEncoder *encoder = nullptr;
 
 void setup() {
 
   Serial.begin(115200);
+  delay(100);
+
   tft.init();
   tft.setRotation(0);
 
@@ -94,15 +100,32 @@ void setup() {
   }
 
   // buttons
-  pinMode(6, INPUT);
-  attachInterrupt(digitalPinToInterrupt(6), outputLInterpEnv1, HIGH);
+  pinMode(6, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(6), outputLInterpEnv1, LOW);
 
   // rotary encoders
+  pinMode(7, INPUT_PULLUP);
+  pinMode(8, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(7), checkPositionEnv1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(8), checkPositionEnv1, CHANGE);  
+
+  encoder = new RotaryEncoder(7, 8, RotaryEncoder::LatchMode::TWO03);
 
   initEnvelopes();
   initButtons();
   drawDurationText();
 
+}
+
+// rotary encoder interrupt handlers
+void checkPositionEnv1()
+{
+  encoder->tick(); // just call tick() to check the state.
+}
+
+void checkPositionEnv2()
+{
+  encoder->tick(); // just call tick() to check the state.
 }
 
 // interrupt handlers
