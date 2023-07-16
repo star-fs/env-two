@@ -129,7 +129,7 @@ void outputLInterp(int env) {
     }
     last = pair.second;
   }
-
+  MCP.setValue(0);
 }
 
 void drawDurationText() {
