@@ -23,13 +23,6 @@
 
 #include "Free_Fonts.h"
 
-// https://github.com/jamon/pi-pico-pio-quadrature-encoder/blob/main/src/quadrature.pio.h
-#include "hardware/pio.h"
-#include "quadrature.pio.h"
-
-#define QUADRATURE_A_PIN 13
-#define QUADRATURE_B_PIN 14
-
 #define BUTTON_W 60
 #define BUTTON_H 26
 
@@ -148,7 +141,7 @@ void outputLInterp(int env) {
     for (int xp=x0;x <= (x1 - x0);xp++) {
       yp = y0 + ((y1-y0)/(x1-x0)) * (xp - x0);
       // set the output value to yp
-      Serial.printf("%d:");
+      Serial.printf("%d:", yp);
       MCP.setValue(yp);
     }
     last = pair.second;
