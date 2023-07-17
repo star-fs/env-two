@@ -12,6 +12,7 @@
 */
 
 #include <SPI.h>
+#include <Bounce2.h>
 #include <TFT_eSPI.h>
 #include <TFT_eWidget.h>
 #include <RotaryEncoder.h>
@@ -60,6 +61,9 @@ MCP4725 MCP(0x62, &Wire1);
 
 RotaryEncoder *encoder = nullptr;
 
+Bounce2::Button b1 = Bounce2::Button();
+Bounce2::Button b2 = Bounce2::Button();
+
 void setup() {
 
   Serial.begin(115200);
@@ -100,9 +104,10 @@ void setup() {
   }
 
   // buttons
-  pinMode(6, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(6), outputLInterpEnv1, LOW);
-
+  b1.attach(6, INPUT_PULLUP);
+  b1.interval(10);
+  b1.setPressedState(LOW); 
+  
   // rotary encoders
   pinMode(7, INPUT_PULLUP);
   pinMode(8, INPUT_PULLUP);
@@ -144,28 +149,30 @@ void outputLInterp(int env) {
 
   float x0,y0,x1,y1,xp,yp,interval,stepLen;
 
-  coords last;
   std::map<int, coords> target = envelope1;
 
   if (env == 2) {
     target = envelope2;
   }
 
+  coords last = target[0];
+
   // calculate the duration of a pixel
   stepLen = duration / 240;
 
-  std::vector<std::pair<int, coords>> sortedPairs(envelope1.begin(), envelope1.end());
+  std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
   for (const auto& pair : sortedPairs) {
     x0 = last.x;
     y0 = last.y;
     x1 = pair.second.x;
     x0 = pair.second.y;
-    for (int xp=x0;x <= (x1 - x0);xp++) {
+    for (int xp=x0;xp <= (x1 - x0);xp++) {
       yp = y0 + ((y1-y0)/(x1-x0)) * (xp - x0);
       // set the output value to yp
       Serial.printf("%d:", yp);
       MCP.setValue(yp);
+      delay(stepLen);
     }
     last = pair.second;
   }
@@ -224,6 +231,7 @@ void loop() {
     }
   }
 
+  // virtual display buttons
   for (uint8_t b = 0; b < buttonCount; b++) {
     if (pressed) {
       if (btn[b]->contains(x, y)) {
@@ -235,6 +243,15 @@ void loop() {
       btn[b]->releaseAction();
     }
   }
+
+  // hardware buttons
+  b1.update();
+
+  if (b1.pressed() ) {
+    Serial.print("erp\n");
+    outputLInterp(1);
+  }
+
 }
 
 void initEnvelopes() {
