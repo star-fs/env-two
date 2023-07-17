@@ -55,7 +55,7 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int duration = 0;
+int duration = 1000;
 
 MCP4725 MCP(0x62, &Wire1);
 
@@ -133,14 +133,6 @@ void checkPositionEnv2()
   encoder->tick(); // just call tick() to check the state.
 }
 
-// interrupt handlers
-void outputLInterpEnv1() {
-  outputLInterp(1);
-}
-
-void outputLInterpEnv2() {
-  outputLInterp(2);
-}
 
 // trigger interupt handle 
 void outputLInterp(int env) {
@@ -156,6 +148,12 @@ void outputLInterp(int env) {
   }
 
   coords last = target[0];
+  auto it=target.end();
+  it--;
+  coords end=it->second;
+
+  Serial.printf("Starting Point: %d/%d\n", last.x, last.y);
+  Serial.printf("Ending   Point: %d/%d\n", end.x, end.y);
 
   // calculate the duration of a pixel
   stepLen = duration / 240;
@@ -166,7 +164,7 @@ void outputLInterp(int env) {
     x0 = last.x;
     y0 = last.y;
     x1 = pair.second.x;
-    x0 = pair.second.y;
+    y1 = pair.second.y;
     for (int xp=x0;xp <= (x1 - x0);xp++) {
       yp = y0 + ((y1-y0)/(x1-x0)) * (xp - x0);
       // set the output value to yp
