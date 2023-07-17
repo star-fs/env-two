@@ -139,7 +139,7 @@ void outputLInterp(int env) {
 
   Serial.print("outputLInterp triggered\n");
 
-  float x0,y0,x1,y1,xp,yp,interval,stepLen;
+  float x0,y0,x1,y1,xp,yp,interval,stepLen = 0.000;
 
   std::map<int, coords> target = envelope1;
 
@@ -161,18 +161,20 @@ void outputLInterp(int env) {
   std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
   for (const auto& pair : sortedPairs) {
-    x0 = last.x;
-    y0 = last.y;
-    x1 = pair.second.x;
-    y1 = pair.second.y;
-    for (int xp=x0;xp <= (x1 - x0);xp++) {
-      yp = y0 + ((y1-y0)/(x1-x0)) * (xp - x0);
+    x0 = (float)last.x;
+    y0 = (float)last.y;
+    x1 = (float)pair.second.x;
+    y1 = (float)pair.second.y;
+    Serial.printf("ERG: %d/%d -> %d/%d ... x1 - x0 = %.4f\n", last.x, last.y, pair.second.x, pair.second.y, (x1 - x0) / 141);
+    for (int xp=x0;xp < x1; xp++) {
+      yp = y0 + (((y1-y0)/(x1-x0)) * (xp - x0));
       // set the output value to yp
-      Serial.printf("%d:", yp);
+      Serial.printf("%.4f:", yp);
       MCP.setValue(yp);
       delay(stepLen);
     }
     last = pair.second;
+    Serial.print("\n");
   }
   Serial.print(">0<\n");
   MCP.setValue(0);
