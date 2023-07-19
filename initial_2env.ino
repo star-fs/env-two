@@ -55,8 +55,7 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int duration1 = 1000;
-int duration2 = 1000;
+int msLen1, msLen2, msLen1Last, msLen2Last = 0;
 
 MCP4725 MCP(0x62, &Wire1);
 
@@ -111,12 +110,12 @@ void setup() {
   
   // rotary encoders
   // encoder 1
-  pinMode(7, INPUT_PULLUP);
-  pinMode(8, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(7), checkPositionEnv1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(8), checkPositionEnv1, CHANGE);  
+  pinMode(10, INPUT_PULLUP);
+  pinMode(11, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(10), checkPositionEnv1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(11), checkPositionEnv1, CHANGE);  
 
-  encoder = new RotaryEncoder(7, 8, RotaryEncoder::LatchMode::FOUR0);
+  encoder = new RotaryEncoder(10, 11, RotaryEncoder::LatchMode::FOUR0);
   encoder->setPosition(0);
 
   // encoder 2
@@ -139,12 +138,6 @@ void setup() {
 // rotary encoder interrupt handlers
 void checkPositionEnv1() {
   encoder->tick();
-  duration1 = encoder->getPosition();
-  if (duration1 < 0) {
-      encoder->setPosition(0);
-  }
-  drawDurationText();
-  return;
 }
 
 void checkPositionEnv2() {
@@ -158,13 +151,13 @@ void outputLInterp(int env) {
 
   float x0,y0,x1,y1,xp,yp,interval,stepLen = 0.000;
   
-  int duration = duration1;
+  int duration = msLen1;
 
   std::map<int, coords> target = envelope1;
 
   if (env == 2) {
     target = envelope2;
-    duration = duration2;
+    duration = msLen2;
   }
 
   coords last = target[0];
@@ -210,10 +203,9 @@ void drawDurationText() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(evnF1X, evnF1Y);
   tft.setTextFont(GLCD);
-  tft.print(duration1);
+  tft.print(msLen1);
   tft.setCursor(evnF2X, evnF2Y);
-  tft.print(duration2);
-  return;
+  tft.print(msLen2);
 }
 
 void loop() {
@@ -271,6 +263,16 @@ void loop() {
   if (b1.pressed() ) {
     Serial.print("erp\n");
     outputLInterp(1);
+  }
+
+  msLen1 = encoder->getPosition();
+  if (msLen1 != msLen1Last) {
+    if (msLen1 < 0) {
+      encoder->setPosition(0);
+      msLen1 = 0;
+    }
+    drawDurationText();
+    msLen1Last = msLen1;
   }
 
 }
