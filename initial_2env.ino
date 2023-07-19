@@ -55,7 +55,8 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int duration = 1000;
+int duration1 = 1000;
+int duration2 = 1000;
 
 MCP4725 MCP(0x62, &Wire1);
 
@@ -109,12 +110,25 @@ void setup() {
   b1.setPressedState(LOW); 
   
   // rotary encoders
+  // encoder 1
   pinMode(7, INPUT_PULLUP);
   pinMode(8, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(7), checkPositionEnv1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(8), checkPositionEnv1, CHANGE);  
 
-  encoder = new RotaryEncoder(7, 8, RotaryEncoder::LatchMode::TWO03);
+  encoder = new RotaryEncoder(7, 8, RotaryEncoder::LatchMode::FOUR0);
+  encoder->setPosition(0);
+
+  // encoder 2
+  /*
+  pinMode(7, INPUT_PULLUP);
+  pinMode(8, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(7), checkPositionEnv1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(8), checkPositionEnv1, CHANGE);  
+
+  encoder = new RotaryEncoder(7, 8, RotaryEncoder::LatchMode::FOUR0);
+  encoder->setPosition(0);
+  */
 
   initEnvelopes();
   initButtons();
@@ -123,16 +137,19 @@ void setup() {
 }
 
 // rotary encoder interrupt handlers
-void checkPositionEnv1()
-{
-  encoder->tick(); // just call tick() to check the state.
+void checkPositionEnv1() {
+  encoder->tick();
+  duration1 = encoder->getPosition();
+  if (duration1 < 0) {
+      encoder->setPosition(0);
+  }
+  drawDurationText();
+  return;
 }
 
-void checkPositionEnv2()
-{
+void checkPositionEnv2() {
   encoder->tick(); // just call tick() to check the state.
 }
-
 
 // trigger interupt handle 
 void outputLInterp(int env) {
@@ -140,11 +157,14 @@ void outputLInterp(int env) {
   Serial.print("outputLInterp triggered\n");
 
   float x0,y0,x1,y1,xp,yp,interval,stepLen = 0.000;
+  
+  int duration = duration1;
 
   std::map<int, coords> target = envelope1;
 
   if (env == 2) {
     target = envelope2;
+    duration = duration2;
   }
 
   coords last = target[0];
@@ -190,9 +210,10 @@ void drawDurationText() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(evnF1X, evnF1Y);
   tft.setTextFont(GLCD);
-  tft.print("0000");
+  tft.print(duration1);
   tft.setCursor(evnF2X, evnF2Y);
-  tft.print("0000");
+  tft.print(duration2);
+  return;
 }
 
 void loop() {
