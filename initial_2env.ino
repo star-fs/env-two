@@ -95,12 +95,13 @@ void setup() {
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
-  MCP.begin(14, 15);
+  MCP.begin(26, 27);
   Wire1.setClock(800000);
   MCP.setValue(0);
 
   if (!MCP.isConnected()) {
     Serial.println("failed to connect to MCP4725.\n");
+    delay(1000);
   }
 
   // buttons
@@ -178,19 +179,17 @@ void outputLInterp(int env) {
     y0 = (float)last.y;
     x1 = (float)pair.second.x;
     y1 = (float)pair.second.y;
-    Serial.printf("ERG: %d/%d -> %d/%d ... x1 - x0 = %.4f\n", last.x, last.y, pair.second.x, pair.second.y, (x1 - x0) / 141);
     for (int xp=x0;xp < x1; xp++) {
-      yp = y0 + (((y1-y0)/(x1-x0)) * (xp - x0));
-      // set the output value to yp
-      Serial.printf("%.4f:", yp);
-      MCP.setValue(yp);
+      // invert and scale between 0 and 1, then convert to a percent
+      yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xp - x0))) / 141) - 1) * -1) * 100);
+      MCP.setPercentage(yp);
       delay(stepLen);
+      Serial.printf("%.4f:\n", yp);
     }
-    last = pair.second;
-    Serial.print("\n");
+    last = pair.second;  
   }
   Serial.print(">0<\n");
-  MCP.setValue(0);
+  MCP.setPercentage(0);
 }
 
 void drawDurationText() {
