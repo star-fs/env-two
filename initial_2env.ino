@@ -24,7 +24,7 @@
 #include "MCP4725.h"
 
 #include "Free_Fonts.h"
-
+  
 #define BUTTON_W 60
 #define BUTTON_H 26
 
@@ -57,7 +57,7 @@ uint16_t rectH;
 
 int msLen1, msLen2, msLen1Last, msLen2Last = 0;
 
-MCP4725 MCP(0x62, &Wire1);
+MCP4725 MCP(0x60, &Wire1);
 
 RotaryEncoder *encoder = nullptr;
 
@@ -95,7 +95,7 @@ void setup() {
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
-  MCP.begin(26, 27);
+  MCP.begin(14, 15);
   Wire1.setClock(800000);
   MCP.setValue(0);
 
@@ -146,15 +146,17 @@ void checkPositionEnv2() {
 }
 
 // trigger interupt handle 
-void outputLInterp(int env) {
-
-  Serial.print("outputLInterp triggered\n");
+void outputLInterp(int env, bool analogOut) {
 
   float x0,y0,x1,y1,xp,yp,interval,stepLen = 0.000;
-  
-  int duration = msLen1;
+
+  // debug
+  unsigned long start = micros();
+  unsigned long endtime = 0;
+  int iterations = 0;
 
   std::map<int, coords> target = envelope1;
+  int duration = msLen1;
 
   if (env == 2) {
     target = envelope2;
@@ -165,9 +167,6 @@ void outputLInterp(int env) {
   auto it=target.end();
   it--;
   coords end=it->second;
-
-  Serial.printf("Starting Point: %d/%d\n", last.x, last.y);
-  Serial.printf("Ending   Point: %d/%d\n", end.x, end.y);
 
   // calculate the duration of a pixel
   stepLen = duration / 240;
@@ -182,14 +181,32 @@ void outputLInterp(int env) {
     for (int xp=x0;xp < x1; xp++) {
       // invert and scale between 0 and 1, then convert to a percent
       yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xp - x0))) / 141) - 1) * -1) * 100);
-      MCP.setPercentage(yp);
-      delay(stepLen);
-      Serial.printf("%.4f:\n", yp);
+      if (analogOut) {
+        MCP.setPercentage(yp);
+        delay(stepLen);
+      }
+      iterations++;
     }
     last = pair.second;  
   }
-  Serial.print(">0<\n");
-  MCP.setPercentage(0);
+  if (analogOut) {
+    MCP.setPercentage(0);
+  }
+  endtime = micros();
+  Serial.printf("folowing iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d\n", iterations, ((endtime - start) / iterations), (endtime - start));
+  
+  // calculate this without the delay for minimum envelope length miliseconds
+  /*
+  if (duration < (endtime - start)) {
+    duration = (endtime - start);
+    if (env == 2) {
+      target = envelope2;
+      msLen2 = duration;
+    } else {
+      msLen2 = duration;
+    }
+  }
+  */
 }
 
 void drawDurationText() {
@@ -217,9 +234,7 @@ void loop() {
   //env2Coords 3,175 -> 236,314
 
   if (pressed) {
-
     if ((y > env1CoordsStart.y && y < env1CoordsEnd.y) && (x > env1CoordsStart.x && x < env1CoordsEnd.x)) {
-      //Serial.printf("ENV1 x/y:%d,%d\n", x,y);
       envelope1[x] = {x,y};
       tft.fillRect(env1CoordsStart.x, env1CoordsStart.y, env1CoordsEnd.x, env1CoordsEnd.y, TFT_BLACK);
       std::vector<std::pair<int, coords>> sortedPairs(envelope1.begin(), envelope1.end());
@@ -228,9 +243,9 @@ void loop() {
         tft.drawWedgeLine(last1.x, last1.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
         last1 = pair.second;
       }
+      //outputLInterp(1, false);
     } else {
       if ((y > env2CoordsStart.y && y < outerRectEnd.y) && (x > env2CoordsStart.x && x < outerRectEnd.x)){
-        //Serial.printf("ENV2 x/y:%d,%d\n", x,y);
         envelope2[x] = {x,y};
         tft.fillRect(env2CoordsStart.x, env2CoordsStart.y, env2CoordsEnd.x, (env2CoordsEnd.y - env2CoordsStart.y) + 2, TFT_BLACK);
         std::vector<std::pair<int, coords>> sortedPairs(envelope2.begin(), envelope2.end());
@@ -239,6 +254,7 @@ void loop() {
           tft.drawWedgeLine(last2.x, last2.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
           last2 = pair.second;
         }
+        //outputLInterp(2, false);
       }
     }
   }
@@ -260,8 +276,7 @@ void loop() {
   b1.update();
 
   if (b1.pressed() ) {
-    Serial.print("erp\n");
-    outputLInterp(1);
+    outputLInterp(1, true);
   }
 
   msLen1 = encoder->getPosition();
@@ -272,6 +287,16 @@ void loop() {
     }
     drawDurationText();
     msLen1Last = msLen1;
+  }
+
+  if (Serial.available() > 0) {
+    // read the incoming byte:
+    String incoming = Serial.readString();
+
+    tft.setCursor(20, 20);
+    tft.setTextFont(GLCD);
+
+    tft.print("Jules says: " + incoming);
   }
 
 }
