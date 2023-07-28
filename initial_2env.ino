@@ -1,5 +1,5 @@
 /*
- 2023-07-14 Star Morin / Autospkr, Labs 
+ Copyright 2023-07-14 by Star Morin (autospkr.org labs) 
  Attribution 3.0 United States (CC BY 3.0 US) 
 
  Share — copy and redistribute the material in any medium or format
