@@ -55,7 +55,8 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int msLen1, msLen2, msLen1Last, msLen2Last = 0;
+int minLenMs = 125;
+int msLen1, msLen2, msLen1Last, msLen2Last = minLenMs;
 
 MCP4725 MCP(0x60, &Wire1);
 
@@ -96,7 +97,7 @@ void setup() {
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
   MCP.begin(14, 15);
-  Wire1.setClock(800000);
+  Wire1.setClock(1000000);
   MCP.setValue(0);
 
   if (!MCP.isConnected()) {
@@ -117,7 +118,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(11), checkPositionEnv1, CHANGE);  
 
   encoder = new RotaryEncoder(10, 11, RotaryEncoder::LatchMode::FOUR0);
-  encoder->setPosition(0);
+  encoder->setPosition(minLenMs);
 
   // encoder 2
   /*
@@ -150,10 +151,11 @@ void outputLInterp(int env, bool analogOut) {
 
   float x0,y0,x1,y1,xp,yp,interval = 0.000;
   unsigned long stepLen;
-  
+
   // debug
-  unsigned long start = micros();
   unsigned long endtime = 0;
+  unsigned long mcpTimeStart, mcpTimeEnd = 0;
+
   int iterations = 0;
 
   std::map<int, coords> target = envelope1;
@@ -170,10 +172,12 @@ void outputLInterp(int env, bool analogOut) {
   coords end=it->second;
 
   // calculate the duration of loop time in microseconds
-  stepLen = (duration * 1000) / 2400;
+  stepLen = (duration * 1000) / 2460;
 
   std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
+
+  unsigned long start = micros();
   for (const auto& pair : sortedPairs) {
     x0 = (float)last.x;
     y0 = (float)last.y;
@@ -184,8 +188,14 @@ void outputLInterp(int env, bool analogOut) {
         // invert and scale between 0 and 1, then convert to a percent
         yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / 141) - 1) * -1) * 100);
         if (analogOut) {
+
+          mcpTimeStart = micros();
           MCP.setPercentage(yp);
-          delayMicroseconds(stepLen);
+          mcpTimeEnd = micros();
+          // delayMicroseconds with args < 0 will crash?
+          if ((mcpTimeEnd - mcpTimeStart) > 1 && stepLen > (mcpTimeEnd - mcpTimeStart)) {
+            delayMicroseconds(stepLen - (mcpTimeEnd - mcpTimeStart));
+          }
         }
         iterations++;
       }
@@ -195,8 +205,17 @@ void outputLInterp(int env, bool analogOut) {
   if (analogOut) {
     MCP.setPercentage(0);
   }
+
   endtime = micros();
-  Serial.printf("folowing iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d\n", iterations, ((endtime - start) / iterations), (endtime - start));
+
+  Serial.printf("following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d. %d\n", 
+    iterations, 
+    ((endtime - start) / iterations), 
+    (endtime - start),
+    duration,
+    stepLen, 
+    (mcpTimeEnd - mcpTimeStart)
+  );
   
   // calculate this without the delay for minimum envelope length miliseconds
   /*
@@ -284,9 +303,9 @@ void loop() {
 
   msLen1 = encoder->getPosition();
   if (msLen1 != msLen1Last) {
-    if (msLen1 < 0) {
-      encoder->setPosition(0);
-      msLen1 = 0;
+    if (msLen1 < minLenMs) {
+      encoder->setPosition(minLenMs);
+      msLen1 = minLenMs;
     }
     drawDurationText();
     msLen1Last = msLen1;
