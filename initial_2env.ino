@@ -172,7 +172,7 @@ void outputLInterp(int env, bool analogOut) {
   coords end=it->second;
 
   // calculate the duration of loop time in microseconds
-  stepLen = (duration * 1000) / 2460;
+  stepLen = (duration * 1000) / 2449;
 
   std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
@@ -217,18 +217,6 @@ void outputLInterp(int env, bool analogOut) {
     (mcpTimeEnd - mcpTimeStart)
   );
   
-  // calculate this without the delay for minimum envelope length miliseconds
-  /*
-  if (duration < (endtime - start)) {
-    duration = (endtime - start);
-    if (env == 2) {
-      target = envelope2;
-      msLen2 = duration;
-    } else {
-      msLen2 = duration;
-    }
-  }
-  */
 }
 
 void drawDurationText() {
