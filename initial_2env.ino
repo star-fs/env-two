@@ -148,8 +148,9 @@ void checkPositionEnv2() {
 // trigger interupt handle 
 void outputLInterp(int env, bool analogOut) {
 
-  float x0,y0,x1,y1,xp,yp,interval,stepLen = 0.000;
-
+  float x0,y0,x1,y1,xp,yp,interval = 0.000;
+  unsigned long stepLen;
+  
   // debug
   unsigned long start = micros();
   unsigned long endtime = 0;
@@ -168,8 +169,8 @@ void outputLInterp(int env, bool analogOut) {
   it--;
   coords end=it->second;
 
-  // calculate the duration of a pixel
-  stepLen = duration / 240;
+  // calculate the duration of loop time in microseconds
+  stepLen = (duration * 1000) / 2400;
 
   std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
@@ -179,15 +180,17 @@ void outputLInterp(int env, bool analogOut) {
     x1 = (float)pair.second.x;
     y1 = (float)pair.second.y;
     for (int xp=x0;xp < x1; xp++) {
-      // invert and scale between 0 and 1, then convert to a percent
-      yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xp - x0))) / 141) - 1) * -1) * 100);
-      if (analogOut) {
-        MCP.setPercentage(yp);
-        delay(stepLen);
+      for (float xpSub=xp;xpSub < (xp + 1); xpSub += 0.1) {
+        // invert and scale between 0 and 1, then convert to a percent
+        yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / 141) - 1) * -1) * 100);
+        if (analogOut) {
+          MCP.setPercentage(yp);
+          delayMicroseconds(stepLen);
+        }
+        iterations++;
       }
-      iterations++;
     }
-    last = pair.second;  
+    last = pair.second;
   }
   if (analogOut) {
     MCP.setPercentage(0);
