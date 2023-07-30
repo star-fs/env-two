@@ -55,7 +55,7 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int minLenMs = 125;
+int minLenMs = 130;
 int msLen1, msLen2, msLen1Last, msLen2Last = minLenMs;
 
 MCP4725 MCP(0x60, &Wire1);
@@ -196,7 +196,6 @@ void loop() {
     outputLInterp(1, true);
   }
 
-  // hardware buttons
   b2.update();
 
   if (b2.pressed() || retrig2) {
@@ -259,13 +258,13 @@ void outputLInterp(int env, bool analogOut) {
 
   std::map<int, coords> target = envelope1;
   int duration = msLen1;
+
   // was constant 141
   int yOffsetDivisor = env1CoordsEnd.y;
 
   if (env == 2) {
     target = envelope2;
     duration = msLen2;
-    // fudge factor 6!
     yOffsetDivisor = env2CoordsEnd.y;
   }
 
@@ -276,22 +275,31 @@ void outputLInterp(int env, bool analogOut) {
 
   // calculate the duration of loop time in microseconds
   stepLen = (duration * 1000) / 2449;
-
+  
+  /*
   std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
   std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
+  */
 
   unsigned long start = micros();
-  for (const auto& pair : sortedPairs) {
+  for (const auto& pair : target) { //sortedPairs) {
+    
     x0 = (float)last.x;
     y0 = (float)last.y;
     x1 = (float)pair.second.x;
     y1 = (float)pair.second.y;
+
     for (int xp=x0;xp < x1; xp++) {
       for (float xpSub=xp;xpSub < (xp + 1); xpSub += 0.1) {
         
         // invert and scale between 0 and 1, then convert to a percent
         yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / yOffsetDivisor) - 1) * -1) * 100);
         
+        // fudge factor 2 for env 2
+        if (env == 2) {
+          yp = yp * 2;
+        }
+
         if (analogOut) {
 
           // check to see if we were pressed during call and exit method, 
@@ -311,10 +319,11 @@ void outputLInterp(int env, bool analogOut) {
           MCP.setPercentage(yp);
           mcpTimeEnd = micros();
           
-          // delayMicroseconds with args <= 0 will crash
-          if ((mcpTimeEnd - mcpTimeStart) > 1 && stepLen > (mcpTimeEnd - mcpTimeStart)) {
-            delayMicroseconds(stepLen - (mcpTimeEnd - mcpTimeStart));
+          // delayMicroseconds with args <= 0 will crash (added magic 13 to make up for my failed timing!)
+          if ((mcpTimeEnd - mcpTimeStart) > 1 && (stepLen - 12) > (mcpTimeEnd - mcpTimeStart)) {
+            delayMicroseconds((stepLen - 12) - (mcpTimeEnd - mcpTimeStart));
           }
+
         }
         iterations++;
       }
