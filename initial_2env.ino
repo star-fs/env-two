@@ -60,10 +60,13 @@ int msLen1, msLen2, msLen1Last, msLen2Last = minLenMs;
 
 MCP4725 MCP(0x60, &Wire1);
 
-RotaryEncoder *encoder = nullptr;
+RotaryEncoder *encoder1 = nullptr;
+RotaryEncoder *encoder2 = nullptr;
 
 Bounce2::Button b1 = Bounce2::Button();
 Bounce2::Button b2 = Bounce2::Button();
+
+bool retrig1, retrig2 = false;
 
 void setup() {
 
@@ -109,7 +112,11 @@ void setup() {
   b1.attach(6, INPUT_PULLUP);
   b1.interval(10);
   b1.setPressedState(LOW); 
-  
+
+  b2.attach(7, INPUT_PULLUP);
+  b2.interval(10);
+  b2.setPressedState(LOW); 
+
   // rotary encoders
   // encoder 1
   pinMode(10, INPUT_PULLUP);
@@ -117,121 +124,23 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(10), checkPositionEnv1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(11), checkPositionEnv1, CHANGE);  
 
-  encoder = new RotaryEncoder(10, 11, RotaryEncoder::LatchMode::FOUR0);
-  encoder->setPosition(minLenMs);
+  encoder1 = new RotaryEncoder(10, 11, RotaryEncoder::LatchMode::FOUR0);
+  encoder1->setPosition(minLenMs);
 
   // encoder 2
-  /*
-  pinMode(7, INPUT_PULLUP);
-  pinMode(8, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(7), checkPositionEnv1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(8), checkPositionEnv1, CHANGE);  
+  
+  pinMode(12, INPUT_PULLUP);
+  pinMode(13, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(12), checkPositionEnv2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(13), checkPositionEnv2, CHANGE);  
 
-  encoder = new RotaryEncoder(7, 8, RotaryEncoder::LatchMode::FOUR0);
-  encoder->setPosition(0);
-  */
-
+  encoder2 = new RotaryEncoder(12, 13, RotaryEncoder::LatchMode::FOUR0);
+  encoder2->setPosition(0);
+  
   initEnvelopes();
   initButtons();
   drawDurationText();
 
-}
-
-// rotary encoder interrupt handlers
-void checkPositionEnv1() {
-  encoder->tick();
-}
-
-void checkPositionEnv2() {
-  encoder->tick(); // just call tick() to check the state.
-}
-
-// trigger interupt handle 
-void outputLInterp(int env, bool analogOut) {
-
-  float x0,y0,x1,y1,xp,yp,interval = 0.000;
-  unsigned long stepLen;
-
-  // debug
-  unsigned long endtime = 0;
-  unsigned long mcpTimeStart, mcpTimeEnd = 0;
-
-  int iterations = 0;
-
-  std::map<int, coords> target = envelope1;
-  int duration = msLen1;
-
-  if (env == 2) {
-    target = envelope2;
-    duration = msLen2;
-  }
-
-  coords last = target[0];
-  auto it=target.end();
-  it--;
-  coords end=it->second;
-
-  // calculate the duration of loop time in microseconds
-  stepLen = (duration * 1000) / 2449;
-
-  std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
-  std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
-
-  unsigned long start = micros();
-  for (const auto& pair : sortedPairs) {
-    x0 = (float)last.x;
-    y0 = (float)last.y;
-    x1 = (float)pair.second.x;
-    y1 = (float)pair.second.y;
-    for (int xp=x0;xp < x1; xp++) {
-      for (float xpSub=xp;xpSub < (xp + 1); xpSub += 0.1) {
-        // invert and scale between 0 and 1, then convert to a percent
-        yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / 141) - 1) * -1) * 100);
-        if (analogOut) {
-
-          mcpTimeStart = micros();
-          MCP.setPercentage(yp);
-          mcpTimeEnd = micros();
-          // delayMicroseconds with args < 0 will crash?
-          if ((mcpTimeEnd - mcpTimeStart) > 1 && stepLen > (mcpTimeEnd - mcpTimeStart)) {
-            delayMicroseconds(stepLen - (mcpTimeEnd - mcpTimeStart));
-          }
-        }
-        iterations++;
-      }
-    }
-    last = pair.second;
-  }
-  if (analogOut) {
-    MCP.setPercentage(0);
-  }
-
-  endtime = micros();
-
-  Serial.printf("following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d. %d\n", 
-    iterations, 
-    ((endtime - start) / iterations), 
-    (endtime - start),
-    duration,
-    stepLen, 
-    (mcpTimeEnd - mcpTimeStart)
-  );
-  
-}
-
-void drawDurationText() {
-  uint16_t evnF1X = ((innerRectStart.x + 20 + BUTTON_W) + 2) + 26;
-  uint16_t evnF1Y = innerRectStart.y + 5;
-  uint16_t evnF2X = evnF1X;
-  uint16_t evnF2Y = evnF1Y + 14;
-  
-  tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(evnF1X, evnF1Y);
-  tft.setTextFont(GLCD);
-  tft.print(msLen1);
-  tft.setCursor(evnF2X, evnF2Y);
-  tft.print(msLen2);
 }
 
 void loop() {
@@ -253,7 +162,6 @@ void loop() {
         tft.drawWedgeLine(last1.x, last1.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
         last1 = pair.second;
       }
-      //outputLInterp(1, false);
     } else {
       if ((y > env2CoordsStart.y && y < outerRectEnd.y) && (x > env2CoordsStart.x && x < outerRectEnd.x)){
         envelope2[x] = {x,y};
@@ -264,7 +172,6 @@ void loop() {
           tft.drawWedgeLine(last2.x, last2.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
           last2 = pair.second;
         }
-        //outputLInterp(2, false);
       }
     }
   }
@@ -285,20 +192,38 @@ void loop() {
   // hardware buttons
   b1.update();
 
-  if (b1.pressed() ) {
+  if (b1.pressed() || retrig1) {
     outputLInterp(1, true);
   }
 
-  msLen1 = encoder->getPosition();
+  // hardware buttons
+  b2.update();
+
+  if (b2.pressed() || retrig2) {
+    outputLInterp(2, true);
+  }
+    
+  msLen1 = encoder1->getPosition();
   if (msLen1 != msLen1Last) {
     if (msLen1 < minLenMs) {
-      encoder->setPosition(minLenMs);
+      encoder1->setPosition(minLenMs);
       msLen1 = minLenMs;
     }
     drawDurationText();
     msLen1Last = msLen1;
   }
 
+  msLen2 = encoder2->getPosition();
+  if (msLen2 != msLen2Last) {
+    if (msLen2 < minLenMs) {
+      encoder2->setPosition(minLenMs);
+      msLen2 = minLenMs;
+    }
+    drawDurationText();
+    msLen2Last = msLen2;
+  }
+
+  /*
   if (Serial.available() > 0) {
     // read the incoming byte:
     String incoming = Serial.readString();
@@ -308,7 +233,129 @@ void loop() {
 
     tft.print("Jules says: " + incoming);
   }
+  */
+}
 
+// rotary encoder interrupt handlers
+void checkPositionEnv1() {
+  encoder1->tick();
+}
+
+void checkPositionEnv2() {
+  encoder2->tick(); // just call tick() to check the state.
+}
+
+// trigger interupt handle 
+void outputLInterp(int env, bool analogOut) {
+
+  float x0,y0,x1,y1,xp,yp,interval = 0.000;
+  unsigned long stepLen;
+
+  // debug
+  unsigned long endtime = 0;
+  unsigned long mcpTimeStart, mcpTimeEnd = 0;
+
+  int iterations = 0;
+
+  std::map<int, coords> target = envelope1;
+  int duration = msLen1;
+  // was constant 141
+  int yOffsetDivisor = env1CoordsEnd.y;
+
+  if (env == 2) {
+    target = envelope2;
+    duration = msLen2;
+    // fudge factor 6!
+    yOffsetDivisor = env2CoordsEnd.y;
+  }
+
+  coords last = target[0];
+  auto it=target.end();
+  it--;
+  coords end=it->second;
+
+  // calculate the duration of loop time in microseconds
+  stepLen = (duration * 1000) / 2449;
+
+  std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
+  std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
+
+  unsigned long start = micros();
+  for (const auto& pair : sortedPairs) {
+    x0 = (float)last.x;
+    y0 = (float)last.y;
+    x1 = (float)pair.second.x;
+    y1 = (float)pair.second.y;
+    for (int xp=x0;xp < x1; xp++) {
+      for (float xpSub=xp;xpSub < (xp + 1); xpSub += 0.1) {
+        
+        // invert and scale between 0 and 1, then convert to a percent
+        yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / yOffsetDivisor) - 1) * -1) * 100);
+        
+        if (analogOut) {
+
+          // check to see if we were pressed during call and exit method, 
+          // and retrigger the selected env
+          b1.update();
+          b2.update();
+          if (b1.pressed() || b2.pressed()) {
+            MCP.setPercentage(0);
+            if (env==2) {retrig2=true;} else {retrig1=true;}
+            b1.update();
+            b2.update();
+            return;
+          }
+
+          // output analog voltages, grab the MCP4725 call duration to adjust the step duration
+          mcpTimeStart = micros();
+          MCP.setPercentage(yp);
+          mcpTimeEnd = micros();
+          
+          // delayMicroseconds with args <= 0 will crash
+          if ((mcpTimeEnd - mcpTimeStart) > 1 && stepLen > (mcpTimeEnd - mcpTimeStart)) {
+            delayMicroseconds(stepLen - (mcpTimeEnd - mcpTimeStart));
+          }
+        }
+        iterations++;
+      }
+    }
+    last = pair.second;
+  }
+  if (analogOut) {
+    MCP.setPercentage(0);
+  }
+
+  endtime = micros();
+  
+  Serial.printf("ENV number: %d following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d. %d. %d\n",
+    env, 
+    iterations, 
+    ((endtime - start) / iterations), 
+    (endtime - start),
+    duration,
+    stepLen, 
+    (mcpTimeEnd - mcpTimeStart),
+    yOffsetDivisor
+  );
+
+  // we got here, so we are not retriggering
+  retrig1 = false;
+  retrig2 = false;
+}
+
+void drawDurationText() {
+  uint16_t evnF1X = ((innerRectStart.x + 20 + BUTTON_W) + 2) + 26;
+  uint16_t evnF1Y = innerRectStart.y + 5;
+  uint16_t evnF2X = evnF1X;
+  uint16_t evnF2Y = evnF1Y + 14;
+  
+  tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setCursor(evnF1X, evnF1Y);
+  tft.setTextFont(GLCD);
+  tft.print(msLen1);
+  tft.setCursor(evnF2X, evnF2Y);
+  tft.print(msLen2);
 }
 
 void initEnvelopes() {
