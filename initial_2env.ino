@@ -254,6 +254,8 @@ void outputLInterp(int env, bool analogOut) {
   unsigned long endtime = 0;
   unsigned long mcpTimeStart, mcpTimeEnd = 0;
 
+  bool b1Press, b2Press = false;
+
   int iterations = 0;
 
   std::map<int, coords> target = envelope1;
@@ -306,9 +308,18 @@ void outputLInterp(int env, bool analogOut) {
           // and retrigger the selected env
           b1.update();
           b2.update();
-          if (b1.pressed() || b2.pressed()) {
+          b1Press = b1.pressed();
+          b2Press = b2.pressed();
+          if (b1Press) {
             MCP.setPercentage(0);
-            if (env==2) {retrig2=true;} else {retrig1=true;}
+            retrig1=true;
+            b1.update();
+            b2.update();
+            return;
+          }
+          if (b2Press) {
+            MCP.setPercentage(0);
+            retrig2=true;
             b1.update();
             b2.update();
             return;
