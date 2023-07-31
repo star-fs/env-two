@@ -145,34 +145,46 @@ void setup() {
 
 void loop() {
 
-  coords last1 = envelope1[0];
-  coords last2 = envelope2[0];
+  coords last;
+  int whichEnv = 0;
+
+  std::map<int, coords> target;
+
   bool pressed = tft.getTouch(&x, &y);
+
+  uint16_t sx, sy, ex, ey = 0;
 
   //env1Coords 3,5 -> 237,145
   //env2Coords 3,175 -> 236,314
 
   if (pressed) {
+    // inside boundry of env 1
     if ((y > env1CoordsStart.y && y < env1CoordsEnd.y) && (x > env1CoordsStart.x && x < env1CoordsEnd.x)) {
       envelope1[x] = {x,y};
-      tft.fillRect(env1CoordsStart.x, env1CoordsStart.y, env1CoordsEnd.x, env1CoordsEnd.y, TFT_BLACK);
-      std::vector<std::pair<int, coords>> sortedPairs(envelope1.begin(), envelope1.end());
-      std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
-      for (const auto& pair : sortedPairs) {
-        tft.drawWedgeLine(last1.x, last1.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
-        last1 = pair.second;
-      }
-    } else {
-      if ((y > env2CoordsStart.y && y < outerRectEnd.y) && (x > env2CoordsStart.x && x < outerRectEnd.x)){
-        envelope2[x] = {x,y};
-        tft.fillRect(env2CoordsStart.x, env2CoordsStart.y, env2CoordsEnd.x, (env2CoordsEnd.y - env2CoordsStart.y) + 2, TFT_BLACK);
-        std::vector<std::pair<int, coords>> sortedPairs(envelope2.begin(), envelope2.end());
-        std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
-        for (const auto& pair : sortedPairs) {
-          tft.drawWedgeLine(last2.x, last2.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
-          last2 = pair.second;
-        }
-      }
+      target = envelope1;
+      whichEnv = 1;
+      last = envelope1[0];
+      sx = env1CoordsStart.x;
+      sy = env1CoordsStart.y;
+      ex = env1CoordsEnd.x;
+      ey = env1CoordsEnd.y;
+
+    // inside boundry of env 2
+    } else if ((y > env2CoordsStart.y && y < outerRectEnd.y) && (x > env2CoordsStart.x && x < outerRectEnd.x)) {
+      envelope2[x] = {x,y};
+      target = envelope2;
+      whichEnv = 2;
+      last = envelope2[0];
+      sx = env2CoordsStart.x;
+      sy = env2CoordsStart.y;
+      ex = env2CoordsEnd.x;
+      ey = env2CoordsEnd.y;
+    }
+
+    tft.fillRect(sx, sy, ex, ey, TFT_BLACK);
+    for (const auto& pair : target) {
+      tft.drawWedgeLine(last.x, last.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
+      last = pair.second;
     }
   }
 
@@ -300,7 +312,7 @@ void outputLInterp(int env, bool analogOut) {
         // fudge factor 2 for env 2
         if (env == 2) {
           yp = yp * 2;
-        }
+        }  
 
         if (analogOut) {
 
