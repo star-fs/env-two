@@ -20,8 +20,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "Wire.h"
-#include "MCP4725.h"
+#include "MCP_DAC.h"
 
 #include "Free_Fonts.h"
   
@@ -55,10 +54,10 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int minLenMs = 130;
+int minLenMs = 60;
 int msLen1, msLen2, msLen1Last, msLen2Last = minLenMs;
 
-MCP4725 MCP(0x60, &Wire1);
+MCP4822 MCP(255, 255, &SPI1);
 
 RotaryEncoder *encoder1 = nullptr;
 RotaryEncoder *encoder2 = nullptr;
@@ -99,15 +98,10 @@ void setup() {
   tft.fillRect(innerRectStart.x, innerRectStart.y, rectW, rectH, TFT_BLUE);
   tft.fillRect(innerRectStart.x + 20 + BUTTON_W, innerRectStart.y + 1, 78, 28, TFT_BLACK);
 
-  MCP.begin(14, 15);
-  Wire1.setClock(1000000);
-  MCP.setValue(0);
-
-  if (!MCP.isConnected()) {
-    Serial.println("failed to connect to MCP4725.\n");
-    delay(1000);
-  }
-
+  MCP.setGPIOpins(14, 8, 15, 9);  // SELECT should match the param of begin()
+  MCP.begin(9);
+  MCP.setGain(2);
+  
   // buttons
   b1.attach(6, INPUT_PULLUP);
   b1.interval(10);
@@ -270,6 +264,8 @@ void outputLInterp(int env, bool analogOut) {
 
   int iterations = 0;
 
+  int loopCount = 2449;
+
   std::map<int, coords> target = envelope1;
   int duration = msLen1;
 
@@ -279,6 +275,7 @@ void outputLInterp(int env, bool analogOut) {
   if (env == 2) {
     target = envelope2;
     duration = msLen2;
+    loopCount = 2431;
     yOffsetDivisor = env2CoordsEnd.y;
   }
 
@@ -288,12 +285,7 @@ void outputLInterp(int env, bool analogOut) {
   coords end=it->second;
 
   // calculate the duration of loop time in microseconds
-  stepLen = (duration * 1000) / 2449;
-  
-  /*
-  std::vector<std::pair<int, coords>> sortedPairs(target.begin(), target.end());
-  std::sort(sortedPairs.begin(), sortedPairs.end(), compareKeys);
-  */
+  stepLen = (((float)duration * 1000) / (float)loopCount) - (7 / 1000);
 
   unsigned long start = micros();
   for (const auto& pair : target) { //sortedPairs) {
@@ -305,6 +297,8 @@ void outputLInterp(int env, bool analogOut) {
 
     for (int xp=x0;xp < x1; xp++) {
       for (float xpSub=xp;xpSub < (xp + 1); xpSub += 0.1) {
+
+        mcpTimeStart = micros();
         
         // invert and scale between 0 and 1, then convert to a percent
         yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / yOffsetDivisor) - 1) * -1) * 100);
@@ -315,7 +309,7 @@ void outputLInterp(int env, bool analogOut) {
         }  
 
         if (analogOut) {
-
+          
           // check to see if we were pressed during call and exit method, 
           // and retrigger the selected env
           b1.update();
@@ -336,15 +330,15 @@ void outputLInterp(int env, bool analogOut) {
             b2.update();
             return;
           }
-
-          // output analog voltages, grab the MCP4725 call duration to adjust the step duration
-          mcpTimeStart = micros();
+          
+          // output analog voltages on the MCP4822
           MCP.setPercentage(yp);
+          
           mcpTimeEnd = micros();
           
-          // delayMicroseconds with args <= 0 will crash (added magic 13 to make up for my failed timing!)
-          if ((mcpTimeEnd - mcpTimeStart) > 1 && (stepLen - 12) > (mcpTimeEnd - mcpTimeStart)) {
-            delayMicroseconds((stepLen - 12) - (mcpTimeEnd - mcpTimeStart));
+          // delayMicroseconds with args <= 0 will crash.
+          if ((mcpTimeEnd - mcpTimeStart) > 1 && (stepLen) > (mcpTimeEnd - mcpTimeStart)) {
+            delayMicroseconds((stepLen) - (mcpTimeEnd - mcpTimeStart));
           }
 
         }
@@ -385,9 +379,9 @@ void drawDurationText() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(evnF1X, evnF1Y);
   tft.setTextFont(GLCD);
-  tft.print(msLen1);
+  tft.print(msLen1 + 6);
   tft.setCursor(evnF2X, evnF2Y);
-  tft.print(msLen2);
+  tft.print(msLen2 + 6);
 }
 
 void initEnvelopes() {
