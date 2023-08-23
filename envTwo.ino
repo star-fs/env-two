@@ -64,6 +64,8 @@ RotaryEncoder *encoder2 = nullptr;
 
 Bounce2::Button b1 = Bounce2::Button();
 Bounce2::Button b2 = Bounce2::Button();
+Bounce2::Button b3 = Bounce2::Button();
+Bounce2::Button b4 = Bounce2::Button();
 
 bool retrig1, retrig2 = false;
 
@@ -100,16 +102,25 @@ void setup() {
 
   MCP.setGPIOpins(14, 8, 15, 9);  // SELECT should match the param of begin()
   MCP.begin(9);
-  MCP.setGain(2);
+  MCP.setGain(1);
   
   // buttons
   b1.attach(6, INPUT_PULLUP);
   b1.interval(10);
   b1.setPressedState(LOW); 
-
+  
   b2.attach(7, INPUT_PULLUP);
   b2.interval(10);
   b2.setPressedState(LOW); 
+
+  // analog input "buttons"
+  b3.attach(26, INPUT);
+  b3.interval(10);
+  b3.setPressedState(HIGH); 
+
+  b4.attach(27, INPUT);
+  b4.interval(10);
+  b4.setPressedState(HIGH);
 
   // rotary encoders
   // encoder 1
@@ -197,17 +208,21 @@ void loop() {
 
   // hardware buttons
   b1.update();
+  b2.update();
 
-  if (b1.pressed() || retrig1) {
+  // analog in trigger "buttons"
+  b3.update();
+  b4.update();
+
+  if (b1.pressed() || b3.pressed() || retrig1) {
     outputLInterp(1, true);
   }
 
-  b2.update();
 
-  if (b2.pressed() || retrig2) {
+  if (b2.pressed() || b4.pressed() || retrig2) {
     outputLInterp(2, true);
   }
-    
+
   msLen1 = encoder1->getPosition();
   if (msLen1 != msLen1Last) {
     if (msLen1 < minLenMs) {
@@ -260,7 +275,7 @@ void outputLInterp(int env, bool analogOut) {
   unsigned long endtime = 0;
   unsigned long mcpTimeStart, mcpTimeEnd = 0;
 
-  bool b1Press, b2Press = false;
+  bool b1Press, b2Press, b3Press, b4Press = false;
 
   int iterations = 0;
 
@@ -314,25 +329,40 @@ void outputLInterp(int env, bool analogOut) {
           // and retrigger the selected env
           b1.update();
           b2.update();
+          b3.update();
+          b4.update();
           b1Press = b1.pressed();
           b2Press = b2.pressed();
-          if (b1Press) {
+          b3Press = b3.pressed();
+          b4Press = b4.pressed();
+          if (b1Press || b3Press) {
             MCP.setPercentage(0);
             retrig1=true;
             b1.update();
             b2.update();
+            b3.update();
+            b4.update();
             return;
           }
-          if (b2Press) {
+          if (b2Press || b4Press) {
             MCP.setPercentage(0);
             retrig2=true;
             b1.update();
             b2.update();
+            b3.update();
+            b4.update();
             return;
           }
           
+          // handle end of gate call
+          /*
+          if (gateCancel) {
+            return;
+          }
+          */
+
           // output analog voltages on the MCP4822
-          MCP.setPercentage(yp);
+          MCP.analogWrite((yp / 100) * 4095, 0);
           
           mcpTimeEnd = micros();
           
