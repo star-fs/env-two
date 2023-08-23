@@ -69,6 +69,8 @@ Bounce2::Button b4 = Bounce2::Button();
 
 bool retrig1, retrig2 = false;
 
+bool envLoop1, envLoop2, envGate1, envGate2, envTrig1, envTrig2 = false;
+
 void setup() {
 
   Serial.begin(115200);
@@ -123,25 +125,54 @@ void setup() {
   b4.setPressedState(HIGH);
 
   // rotary encoders
+
   // encoder 1
   pinMode(10, INPUT_PULLUP);
   pinMode(11, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(10), checkPositionEnv1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(11), checkPositionEnv1, CHANGE);  
-
   encoder1 = new RotaryEncoder(10, 11, RotaryEncoder::LatchMode::FOUR0);
   encoder1->setPosition(minLenMs);
 
   // encoder 2
-  
   pinMode(12, INPUT_PULLUP);
   pinMode(13, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(12), checkPositionEnv2, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(13), checkPositionEnv2, CHANGE);  
-
+  attachInterrupt(digitalPinToInterrupt(13), checkPositionEnv2, CHANGE);
   encoder2 = new RotaryEncoder(12, 13, RotaryEncoder::LatchMode::FOUR0);
   encoder2->setPosition(0);
   
+  // digital switches
+
+  // switch 1
+  pinMode(21, INPUT_PULLUP);
+  pinMode(22, INPUT_PULLUP);
+
+  // check boot-up state
+  if (digitalRead(21) == 1) {
+    envLoop1 = true;
+  }
+  if (digitalRead(22) == 1) {
+    envGate1 = true;
+  }
+  attachInterrupt(digitalPinToInterrupt(21), toggleEnvLoop1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(22), toggleEnvGate1, CHANGE);  
+
+  // switch 2
+  pinMode(29, INPUT_PULLUP);
+  pinMode(34, INPUT_PULLUP);
+
+  // check boot-up state
+  if (digitalRead(29) == 1) {
+    envLoop2 = true;
+  }
+  if (digitalRead(34) == 1) {
+    envGate2 = true;
+  }
+
+  attachInterrupt(digitalPinToInterrupt(29), toggleEnvLoop2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(34), toggleEnvGate2, CHANGE);  
+
   initEnvelopes();
   initButtons();
   drawDurationText();
@@ -158,9 +189,6 @@ void loop() {
   bool pressed = tft.getTouch(&x, &y);
 
   uint16_t sx, sy, ex, ey = 0;
-
-  //env1Coords 3,5 -> 237,145
-  //env2Coords 3,175 -> 236,314
 
   if (pressed) {
     // inside boundry of env 1
@@ -263,6 +291,26 @@ void checkPositionEnv1() {
 
 void checkPositionEnv2() {
   encoder2->tick(); // just call tick() to check the state.
+}
+
+// rotary encoder interrupt handlers
+void toggleEnvLoop1() {
+  envLoop1 = !envLoop1;
+}
+
+// rotary encoder interrupt handlers
+void toggleEnvLoop2() {
+  envLoop2 = !envLoop2;
+}
+
+// rotary encoder interrupt handlers
+void toggleEnvGate1() {
+  envGate1 = !envGate1;
+}
+
+// rotary encoder interrupt handlers
+void toggleEnvGate2() {
+  envGate1 = !envGate1;
 }
 
 // trigger interupt handle 
