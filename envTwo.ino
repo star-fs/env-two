@@ -157,20 +157,20 @@ void setup() {
   }
 
   // switch 2
-  pinMode(7, INPUT_PULLUP);
-  pinMode(1, INPUT_PULLUP);
+  pinMode(5, INPUT_PULLUP);
+  pinMode(4, INPUT_PULLUP);
 
   // check boot-up state
-  if (digitalRead(7) == 0) {
+  if (digitalRead(5) == 0) {
     envLoop2 = true;
   }
-  if (digitalRead(1) == 0) {
+  if (digitalRead(4) == 0) {
     envGate2 = true;
   }
 
   // switch interupts
-  attachInterrupt(digitalPinToInterrupt(7), toggleEnvLoop2, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(1), toggleEnvGate2, CHANGE);  
+  attachInterrupt(digitalPinToInterrupt(5), toggleEnvLoop2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(4), toggleEnvGate2, CHANGE);  
   attachInterrupt(digitalPinToInterrupt(28), toggleEnvLoop1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(22), toggleEnvGate1, CHANGE);  
   
@@ -195,9 +195,13 @@ void loop() {
   // envLoop1, envLoop2, envGate1, envGate2, envTrig1, envTrig2
   if (envLoop1 == false && envGate1 == false) {
     envTrig1 = true;
+  } else {
+    envTrig1 = false;
   }
   if (envLoop2 == false && envGate2 == false) {
     envTrig2 = true;
+  } else {
+    envTrig2 = false;
   }
 
   if (pressed) {
@@ -303,26 +307,45 @@ void checkPositionEnv2() {
 }
 
 void toggleEnvLoop1() {
-  envLoop1 = !envLoop1;
+  int val = digitalRead(28);
+  if (val == 1) {
+    envLoop1 = false;
+  } else {
+    envLoop1 = true;
+  }
+}
+void toggleEnvGate1() {
+  int val = digitalRead(22);
+  if (val == 1) {
+    envGate1 = false;
+  } else {
+    envGate1 = true;
+  }
 }
 void toggleEnvLoop2() {
-  envLoop2 = !envLoop2;
-}
-
-void toggleEnvGate1() {
-  envGate1 = !envGate1;
+ int val = digitalRead(5);
+  if (val == 1) {
+    envLoop2 = false;
+  } else {
+    envLoop2 = true;
+  }
 }
 void toggleEnvGate2() {
-  envGate2 = !envGate2;
+ int val = digitalRead(4);
+  if (val == 1) {
+    envGate2 = false;
+  } else {
+    envGate2 = true;
+  }
 }
 
 // trigger interupt handle 
 void outputLInterp(int env, bool analogOut) {
 
   Serial.printf("envLoop1:%d envGate1:%d - envLoop2:%d envGate2:%d ::::: envTrig1:%d envTrig2:%d\n", 
-    envLoop1, 
+    envLoop1,
+    envGate1,
     envLoop2, 
-    envGate1, 
     envGate2, 
     envTrig1, 
     envTrig2
