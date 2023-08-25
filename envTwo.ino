@@ -436,7 +436,14 @@ void outputLInterp(int env, bool analogOut) {
             b4.update();
             return;
           }
-          
+          if (env == 1 && envGate1 == true && b3.released()) {
+            MCP.setPercentage(0);
+            return;
+          } 
+          if (env == 2 && envGate2 == true && b4.released()) {
+            MCP.setPercentage(0);
+            return;
+          } 
           // handle end of gate call
           /*
           if (gateCancel) {
@@ -462,14 +469,16 @@ void outputLInterp(int env, bool analogOut) {
     last = pair.second;
     
     // handle loop reset 
-    /*
-    if (env == 1 && envLoop1 == true) {
+    
+    if (env == 1 && envLoop1 == true && !b3.released()) {
+      last = target[0];
       goto restart;
     }
-    if (env == 2 && envLoop2 == true) {
+    if (env == 2 && envLoop2 == true && !b4.released()) {
+      last = target[0];
       goto restart;
     }
-    */
+
   }
   if (analogOut) {
     MCP.setPercentage(0);
