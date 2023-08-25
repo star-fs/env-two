@@ -145,34 +145,35 @@ void setup() {
   // digital switches
 
   // switch 1
-  pinMode(21, INPUT_PULLUP);
+  pinMode(28, INPUT_PULLUP);
   pinMode(22, INPUT_PULLUP);
 
   // check boot-up state
-  if (digitalRead(21) == 1) {
+  if (digitalRead(28) == 0) {
     envLoop1 = true;
   }
-  if (digitalRead(22) == 1) {
+  if (digitalRead(22) == 0) {
     envGate1 = true;
   }
-  attachInterrupt(digitalPinToInterrupt(21), toggleEnvLoop1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(22), toggleEnvGate1, CHANGE);  
 
   // switch 2
-  pinMode(29, INPUT_PULLUP);
-  pinMode(34, INPUT_PULLUP);
+  pinMode(7, INPUT_PULLUP);
+  pinMode(1, INPUT_PULLUP);
 
   // check boot-up state
-  if (digitalRead(29) == 1) {
+  if (digitalRead(7) == 0) {
     envLoop2 = true;
   }
-  if (digitalRead(34) == 1) {
+  if (digitalRead(1) == 0) {
     envGate2 = true;
   }
 
-  attachInterrupt(digitalPinToInterrupt(29), toggleEnvLoop2, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(34), toggleEnvGate2, CHANGE);  
-
+  // switch interupts
+  attachInterrupt(digitalPinToInterrupt(7), toggleEnvLoop2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(1), toggleEnvGate2, CHANGE);  
+  attachInterrupt(digitalPinToInterrupt(28), toggleEnvLoop1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(22), toggleEnvGate1, CHANGE);  
+  
   initEnvelopes();
   initButtons();
   drawDurationText();
@@ -189,6 +190,15 @@ void loop() {
   bool pressed = tft.getTouch(&x, &y);
 
   uint16_t sx, sy, ex, ey = 0;
+
+  // enable one-shot trigger mode if no other mode is active
+  // envLoop1, envLoop2, envGate1, envGate2, envTrig1, envTrig2
+  if (envLoop1 == false && envGate1 == false) {
+    envTrig1 = true;
+  }
+  if (envLoop2 == false && envGate2 == false) {
+    envTrig2 = true;
+  }
 
   if (pressed) {
     // inside boundry of env 1
@@ -246,7 +256,6 @@ void loop() {
     outputLInterp(1, true);
   }
 
-
   if (b2.pressed() || b4.pressed() || retrig2) {
     outputLInterp(2, true);
   }
@@ -293,28 +302,31 @@ void checkPositionEnv2() {
   encoder2->tick(); // just call tick() to check the state.
 }
 
-// rotary encoder interrupt handlers
 void toggleEnvLoop1() {
   envLoop1 = !envLoop1;
 }
-
-// rotary encoder interrupt handlers
 void toggleEnvLoop2() {
   envLoop2 = !envLoop2;
 }
 
-// rotary encoder interrupt handlers
 void toggleEnvGate1() {
   envGate1 = !envGate1;
 }
-
-// rotary encoder interrupt handlers
 void toggleEnvGate2() {
-  envGate1 = !envGate1;
+  envGate2 = !envGate2;
 }
 
 // trigger interupt handle 
 void outputLInterp(int env, bool analogOut) {
+
+  Serial.printf("envLoop1:%d envGate1:%d - envLoop2:%d envGate2:%d ::::: envTrig1:%d envTrig2:%d\n", 
+    envLoop1, 
+    envLoop2, 
+    envGate1, 
+    envGate2, 
+    envTrig1, 
+    envTrig2
+  );
 
   float x0,y0,x1,y1,xp,yp,interval = 0.000;
   unsigned long stepLen;
@@ -351,7 +363,7 @@ void outputLInterp(int env, bool analogOut) {
   stepLen = (((float)duration * 1000) / (float)loopCount) - (7 / 1000);
 
   unsigned long start = micros();
-  for (const auto& pair : target) { //sortedPairs) {
+  restart: for (const auto& pair : target) { //sortedPairs) {
     
     x0 = (float)last.x;
     y0 = (float)last.y;
@@ -423,14 +435,25 @@ void outputLInterp(int env, bool analogOut) {
         iterations++;
       }
     }
+
     last = pair.second;
+    
+    // handle loop reset 
+    /*
+    if (env == 1 && envLoop1 == true) {
+      goto restart;
+    }
+    if (env == 2 && envLoop2 == true) {
+      goto restart;
+    }
+    */
   }
   if (analogOut) {
     MCP.setPercentage(0);
   }
 
   endtime = micros();
-  
+  /*
   Serial.printf("ENV number: %d following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d. %d. %d\n",
     env, 
     iterations, 
@@ -441,7 +464,7 @@ void outputLInterp(int env, bool analogOut) {
     (mcpTimeEnd - mcpTimeStart),
     yOffsetDivisor
   );
-
+  */
   // we got here, so we are not retriggering
   retrig1 = false;
   retrig2 = false;
