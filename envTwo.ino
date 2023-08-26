@@ -189,6 +189,8 @@ void loop() {
 
   bool pressed = tft.getTouch(&x, &y);
 
+  String buttonPressed = "";
+
   uint16_t sx, sy, ex, ey = 0;
 
   // enable one-shot trigger mode if no other mode is active
@@ -256,14 +258,21 @@ void loop() {
   b3.update();
   b4.update();
 
-  if (b1.pressed() || b3.pressed() || retrig1) {
-    outputLInterp(1, true);
+  // handle trigger events
+  if (b1.pressed()) { buttonPressed = "b1";}
+  if (b2.pressed()) { buttonPressed = "b2";}
+  if (b3.pressed()) { buttonPressed = "b3";}
+  if (b4.pressed()) { buttonPressed = "b4";}
+
+  if (buttonPressed == "b1" || buttonPressed == "b3" || retrig1) {
+    outputLInterp(1, true, buttonPressed);
   }
 
-  if (b2.pressed() || b4.pressed() || retrig2) {
-    outputLInterp(2, true);
+  if (buttonPressed == "b2" || buttonPressed == "b4" || retrig2) {
+    outputLInterp(2, true, buttonPressed);
   }
 
+  // update duration values and display
   msLen1 = encoder1->getPosition();
   if (msLen1 != msLen1Last) {
     if (msLen1 < minLenMs) {
@@ -340,7 +349,7 @@ void toggleEnvGate2() {
 }
 
 // trigger interupt handle 
-void outputLInterp(int env, bool analogOut) {
+void outputLInterp(int env, bool analogOut, String pressed) {
 
   Serial.printf("envLoop1:%d envGate1:%d - envLoop2:%d envGate2:%d ::::: envTrig1:%d envTrig2:%d\n", 
     envLoop1,
@@ -436,6 +445,7 @@ void outputLInterp(int env, bool analogOut) {
             b4.update();
             return;
           }
+
           if (env == 1 && envGate1 == true && b3.released()) {
             MCP.setPercentage(0);
             return;
@@ -468,18 +478,26 @@ void outputLInterp(int env, bool analogOut) {
 
     last = pair.second;
     
-    // handle loop reset 
-    
-    if (env == 1 && envLoop1 == true && !b3.released()) {
-      last = target[0];
-      goto restart;
-    }
-    if (env == 2 && envLoop2 == true && !b4.released()) {
-      last = target[0];
-      goto restart;
-    }
-
   }
+
+  // handle loop reset 
+  if (env == 1 && envLoop1 == true && pressed == "b1" && digitalRead(6) == 0) {
+    last = target[0];
+    goto restart;
+  }
+  if (env == 1 && envLoop1 == true && pressed == "b3" && digitalRead(26) == 0) {
+    last = target[0];
+    goto restart;
+  }
+  if (env == 2 && envLoop2 == true && pressed == "b2" && digitalRead(7) == 0) {
+    last = target[0];
+    goto restart;
+  }
+  if (env == 2 && envLoop2 == true && pressed == "b4" && digitalRead(27) == 0) {
+    last = target[0];
+    goto restart;
+  }
+
   if (analogOut) {
     MCP.setPercentage(0);
   }
