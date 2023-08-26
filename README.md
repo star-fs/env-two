@@ -1,4 +1,4 @@
-# silver-rotary
+# env-two (silver-rotary)
 
 experimental dual envelope generator with analog triggers in and analog voltage out.
 
