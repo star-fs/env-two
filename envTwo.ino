@@ -85,14 +85,14 @@ void setup() {
   tft.setTouch(calData);  
 
   outerRectStart = {2, 3};
-  outerRectEnd   = {(uint16_t)(tft.width() - 2), (uint16_t)(tft.height() - 4)};
+  outerRectEnd   = {(uint16_t)(tft.width() - 2), (uint16_t)(tft.height() - 2)};
 
   innerRectStart = {(uint16_t)2, (uint16_t)(((tft.height() / 2) - 15))};
   rectW = ((uint16_t)(tft.width() - 3));
   rectH = 30;
 
   env1CoordsStart = {(uint16_t)(outerRectStart.x + 1), 3};
-  env1CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(innerRectStart.y - 4)};
+  env1CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(innerRectStart.y - 2)};
 
   env2CoordsStart = {(uint16_t)(outerRectStart.x + 1), (uint16_t)(innerRectStart.y + 30)};
   env2CoordsEnd = {(uint16_t)(outerRectEnd.x - 2), (uint16_t)(outerRectEnd.y - 2)};
@@ -417,8 +417,7 @@ void outputLInterp(int env, bool analogOut, String pressed) {
 
         if (analogOut) {
           
-          // check to see if we were pressed during call and exit method, 
-          // and retrigger the selected env
+          // check to see if we were pressed during call and exit retriggering the selected env
           b1.update();
           b2.update();
           b3.update();
@@ -427,8 +426,14 @@ void outputLInterp(int env, bool analogOut, String pressed) {
           b2Press = b2.pressed();
           b3Press = b3.pressed();
           b4Press = b4.pressed();
-          if (b1Press || b3Press) {
+          if (b1Press || b3Press || b2Press || b4Press) {
             MCP.setPercentage(0);
+            if (b1Press || b3Press) {
+              retrig1=true;
+            }
+            if (b2Press || b4Press) {
+              retrig2=true;
+            }
             retrig1=true;
             b1.update();
             b2.update();
@@ -436,30 +441,18 @@ void outputLInterp(int env, bool analogOut, String pressed) {
             b4.update();
             return;
           }
-          if (b2Press || b4Press) {
-            MCP.setPercentage(0);
-            retrig2=true;
-            b1.update();
-            b2.update();
-            b3.update();
-            b4.update();
-            return;
-          }
 
-          if (env == 1 && envGate1 == true && b3.released()) {
+          // handle gate off events
+          if (env == 1 && (envGate1 == true || envLoop1 == true) 
+            && ((pressed == "b3" && b3.released()) || (pressed == "b1" && b1.released()))) {
             MCP.setPercentage(0);
             return;
           } 
-          if (env == 2 && envGate2 == true && b4.released()) {
+          if (env == 2 && (envGate2 == true || envLoop2 == true)
+            && ((pressed == "b4" && b4.released()) || (pressed == "b2" && b2.released()))) {
             MCP.setPercentage(0);
-            return;
-          } 
-          // handle end of gate call
-          /*
-          if (gateCancel) {
             return;
           }
-          */
 
           // output analog voltages on the MCP4822
           MCP.analogWrite((yp / 100) * 4095, 0);
@@ -480,20 +473,17 @@ void outputLInterp(int env, bool analogOut, String pressed) {
     
   }
 
-  // handle loop reset 
-  if (env == 1 && envLoop1 == true && pressed == "b1" && digitalRead(6) == 0) {
+  // restart loop if envLoop 
+  if (env == 1 && envLoop1 == true 
+    && ((pressed == "b3" && digitalRead(26) == 1) || (pressed == "b1" && digitalRead(6) == 0))) {
+
     last = target[0];
     goto restart;
   }
-  if (env == 1 && envLoop1 == true && pressed == "b3" && digitalRead(26) == 0) {
-    last = target[0];
-    goto restart;
-  }
-  if (env == 2 && envLoop2 == true && pressed == "b2" && digitalRead(7) == 0) {
-    last = target[0];
-    goto restart;
-  }
-  if (env == 2 && envLoop2 == true && pressed == "b4" && digitalRead(27) == 0) {
+
+  if (env == 2 && envLoop2 == true 
+    && ((pressed == "b4" && digitalRead(27) == 1) || (pressed == "b2" && digitalRead(7) == 0))) {
+
     last = target[0];
     goto restart;
   }
@@ -503,7 +493,10 @@ void outputLInterp(int env, bool analogOut, String pressed) {
   }
 
   endtime = micros();
+
   /*
+  // debug print for timing
+
   Serial.printf("ENV number: %d following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d. %d. %d\n",
     env, 
     iterations, 
@@ -515,6 +508,7 @@ void outputLInterp(int env, bool analogOut, String pressed) {
     yOffsetDivisor
   );
   */
+
   // we got here, so we are not retriggering
   retrig1 = false;
   retrig2 = false;
