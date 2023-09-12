@@ -54,7 +54,7 @@ coords env2CoordsEnd;
 uint16_t rectW;
 uint16_t rectH;
 
-int minLenMs = 60;
+int minLenMs = 6;
 int msLen1, msLen2, msLen1Last, msLen2Last = minLenMs;
 
 MCP4822 MCP(255, 255, &SPI1);
@@ -351,6 +351,7 @@ void toggleEnvGate2() {
 // trigger interupt handle 
 void outputLInterp(int env, bool analogOut, String pressed) {
 
+  /*
   Serial.printf("envLoop1:%d envGate1:%d - envLoop2:%d envGate2:%d ::::: envTrig1:%d envTrig2:%d\n", 
     envLoop1,
     envGate1,
@@ -359,6 +360,7 @@ void outputLInterp(int env, bool analogOut, String pressed) {
     envTrig1, 
     envTrig2
   );
+  */
 
   float x0,y0,x1,y1,xp,yp,interval = 0.000;
   unsigned long stepLen;
@@ -371,19 +373,28 @@ void outputLInterp(int env, bool analogOut, String pressed) {
 
   int iterations = 0;
 
-  int loopCount = 2449;
+  float timeDivisor = 1;
+
+  int loopCount = 236;
 
   std::map<int, coords> target = envelope1;
   int duration = msLen1;
 
-  // was constant 141
   int yOffsetDivisor = env1CoordsEnd.y;
 
   if (env == 2) {
     target = envelope2;
     duration = msLen2;
-    loopCount = 2431;
     yOffsetDivisor = env2CoordsEnd.y;
+  }
+
+  // if we are less than 66ms, we get rid of the multiplier
+
+  if (duration > 66) {
+    timeDivisor = 0.1;
+    if (env == 1) {
+      loopCount = 2440;
+    }
   }
 
   coords last = target[0];
@@ -403,17 +414,17 @@ void outputLInterp(int env, bool analogOut, String pressed) {
     y1 = (float)pair.second.y;
 
     for (int xp=x0;xp < x1; xp++) {
-      for (float xpSub=xp;xpSub < (xp + 1); xpSub += 0.1) {
+      for (float xpSub=xp;xpSub < (xp + 1); xpSub += timeDivisor) {
 
         mcpTimeStart = micros();
         
-        // invert and scale between 0 and 1, then convert to a percent
+        // linear interpolate, invert and scale between 0 and 1, then convert to a percent
         yp = (((((y0 + (((y1-y0)/(x1-x0)) * (xpSub - x0))) / yOffsetDivisor) - 1) * -1) * 100);
         
         // fudge factor 2 for env 2
         if (env == 2) {
           yp = yp * 2;
-        }  
+        }
 
         if (analogOut) {
           
@@ -494,21 +505,17 @@ void outputLInterp(int env, bool analogOut, String pressed) {
 
   endtime = micros();
 
-  /*
   // debug print for timing
 
-  Serial.printf("ENV number: %d following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d. %d. %d\n",
+  Serial.printf("ENV number: %d following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d.\n",
     env, 
     iterations, 
-    ((endtime - start) / iterations), 
+    ((mcpTimeEnd - mcpTimeStart)), 
     (endtime - start),
     duration,
-    stepLen, 
-    (mcpTimeEnd - mcpTimeStart),
-    yOffsetDivisor
+    stepLen
   );
-  */
-
+  
   // we got here, so we are not retriggering
   retrig1 = false;
   retrig2 = false;
@@ -524,9 +531,9 @@ void drawDurationText() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(evnF1X, evnF1Y);
   tft.setTextFont(GLCD);
-  tft.print(msLen1 + 6);
+  tft.print(msLen1 + 1);
   tft.setCursor(evnF2X, evnF2Y);
-  tft.print(msLen2 + 6);
+  tft.print(msLen2 + 1);
 }
 
 void initEnvelopes() {
