@@ -1,6 +1,6 @@
 # env-two (silver-rotary)
 
-experimental dual envelope generator with analog triggers in and analog voltage out.
+experimental dual envelope generator with analog triggers in and analog voltage out.  selectable modes: loop, trigger and gate
 
 Using the MCP4822, PC817 optocouplers, LM358 op amp and some filtering.  duration set by rotary encoders with display value in milliseconds.
 
