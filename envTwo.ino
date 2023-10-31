@@ -438,14 +438,13 @@ void outputLInterp(int env, bool analogOut, String pressed) {
           b3Press = b3.pressed();
           b4Press = b4.pressed();
           if (b1Press || b3Press || b2Press || b4Press) {
-            MCP.setPercentage(0);
+            MCP.fastWriteA(0);
             if (b1Press || b3Press) {
               retrig1=true;
             }
             if (b2Press || b4Press) {
               retrig2=true;
             }
-            retrig1=true;
             b1.update();
             b2.update();
             b3.update();
@@ -456,17 +455,17 @@ void outputLInterp(int env, bool analogOut, String pressed) {
           // handle gate off events
           if (env == 1 && (envGate1 == true || envLoop1 == true) 
             && ((pressed == "b3" && b3.released()) || (pressed == "b1" && b1.released()))) {
-            MCP.setPercentage(0);
+            MCP.fastWriteA(0);
             return;
           } 
           if (env == 2 && (envGate2 == true || envLoop2 == true)
             && ((pressed == "b4" && b4.released()) || (pressed == "b2" && b2.released()))) {
-            MCP.setPercentage(0);
+            MCP.fastWriteA(0);
             return;
           }
 
           // output analog voltages on the MCP4822
-          MCP.analogWrite((yp / 100) * 4095, 0);
+          MCP.fastWriteA((yp / 100) * 4095);
           
           mcpTimeEnd = micros();
           
@@ -500,7 +499,7 @@ void outputLInterp(int env, bool analogOut, String pressed) {
   }
 
   if (analogOut) {
-    MCP.setPercentage(0);
+    MCP.fastWriteA(0);
   }
 
   endtime = micros();
