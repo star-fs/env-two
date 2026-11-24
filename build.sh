@@ -4,6 +4,8 @@
 #   ./build.sh                      compile only -> build/out/envTwo.ino.uf2
 #   ./build.sh upload [PORT]        compile, then upload (PORT default /dev/ttyACM0)
 #   ./build.sh setup                one-time install of the core + pinned libraries
+#   ./build.sh schematic            ERC-check kicad/envTwo.kicad_sch, then re-render
+#                                   envTwo_schematic.png from it (needs KiCad + pdftoppm)
 #
 # arduino-cli requires the sketch folder name to match the .ino name, and this
 # repo is checked out as "env-two", so we compile from build/envTwo/, a folder of
@@ -20,7 +22,6 @@ SKETCH="$REPO/build/envTwo"
 OUT="$REPO/build/out"
 
 die() { echo "error: $*" >&2; exit 1; }
-command -v arduino-cli >/dev/null || die "arduino-cli not found (expected in ~/.local/bin)"
 
 libdir() {
   local ud
@@ -74,9 +75,38 @@ do_compile() {
   echo "UF2: $OUT/envTwo.ino.uf2"
 }
 
+need_arduino_cli() {
+  command -v arduino-cli >/dev/null || die "arduino-cli not found (expected in ~/.local/bin)"
+}
+
+# Re-render the README schematic image from the KiCad project. Temp files go
+# in build/ (inside the repo) because the KiCad snap cannot write to /tmp.
+do_schematic() {
+  local kcli sch="$REPO/kicad/envTwo.kicad_sch" tmp="$REPO/build/schematic"
+  kcli="$(command -v kicad-cli || true)"
+  [ -n "$kcli" ] || { [ -x /snap/bin/kicad.kicad-cli ] && kcli=/snap/bin/kicad.kicad-cli; }
+  [ -n "$kcli" ] || die "kicad-cli not found (install KiCad 9)"
+  command -v pdftoppm >/dev/null || die "pdftoppm not found (apt package poppler-utils)"
+  [ -f "$sch" ] || die "missing $sch"
+  mkdir -p "$tmp"
+
+  # errors only: the 'library not in sym-lib-table' items are warnings, and the
+  # symbols are embedded in the schematic anyway
+  if ! "$kcli" sch erc --severity-error --exit-code-violations -o "$tmp/erc.rpt" "$sch" >/dev/null; then
+    cat "$tmp/erc.rpt" >&2
+    die "ERC found errors - fix them before exporting (report: $tmp/erc.rpt)"
+  fi
+  "$kcli" sch export pdf -o "$tmp/envTwo.pdf" "$sch" >/dev/null
+  # A3 at 210 dpi ~ 3470x2460 px, about the size of the original 2023 image
+  pdftoppm -png -r 210 -singlefile "$tmp/envTwo.pdf" "$tmp/envTwo_schematic"
+  mv "$tmp/envTwo_schematic.png" "$REPO/envTwo_schematic.png"
+  echo "ERC clean; wrote $REPO/envTwo_schematic.png"
+}
+
 case "${1:-compile}" in
-  compile) do_compile ;;
-  upload)  do_compile; arduino-cli upload -b "$FQBN" -p "${2:-/dev/ttyACM0}" --input-dir "$OUT" "$SKETCH" ;;
-  setup)   do_setup ;;
-  *)       die "usage: $0 [compile | upload [PORT] | setup]" ;;
+  compile)   need_arduino_cli; do_compile ;;
+  upload)    need_arduino_cli; do_compile; arduino-cli upload -b "$FQBN" -p "${2:-/dev/ttyACM0}" --input-dir "$OUT" "$SKETCH" ;;
+  setup)     need_arduino_cli; do_setup ;;
+  schematic) do_schematic ;;
+  *)         die "usage: $0 [compile | upload [PORT] | setup | schematic]" ;;
 esac
