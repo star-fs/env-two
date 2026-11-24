@@ -14,8 +14,8 @@ Using the MCP4822, PC817 optocouplers, LM358 op amp and some filtering.  duratio
 
 Kicad Schematic
 
-![schematic](envTwo_schematic.png)
-
-The same circuit drawn with full wiring, in the layout of the original 2023 schematic:
-
 ![schematic, wired](envTwo_schematic_wired.png)
+
+The same circuit drawn with net labels instead of wires:
+
+![schematic](envTwo_schematic.png)
