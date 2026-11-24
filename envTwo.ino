@@ -368,10 +368,6 @@ void outputLInterp(int env, bool analogOut, String pressed) {
 
   int iterations = 0;
 
-  float timeDivisor = 1;
-
-  int loopCount = 236;
-
   std::map<int, coords> target = envelope1;
   int duration = msLen1;
 
@@ -383,19 +379,28 @@ void outputLInterp(int env, bool analogOut, String pressed) {
     yOffsetDivisor = env2CoordsEnd.y;
   }
 
-  // if we are less than 66ms, we get rid of the multiplier
-
-  if (duration > 66) {
-    timeDivisor = 0.1;
-    if (env == 1) {
-      loopCount = 2440;
-    }
-  }
+  // above 66ms, output 10 interpolated sub-steps per pixel for a smoother
+  // envelope; at or below 66ms there is no time for them, so 1 per pixel
+  int subSteps = (duration > 66) ? 10 : 1;
 
   coords last = target[0];
 
+  // count the DAC writes one pass will make (same walk as the playback loop
+  // below), so each envelope's step length comes out of its own shape
+  long totalSteps = 0;
+  for (const auto& pair : target) {
+    if (pair.second.x > last.x) {
+      totalSteps += (long)(pair.second.x - last.x) * subSteps;
+    }
+    last = pair.second;
+  }
+  if (totalSteps < 1) {
+    totalSteps = 1;
+  }
+  last = target[0];
+
   // calculate the duration of loop time in microseconds
-  stepLen = ((float)duration * 1000) / (float)loopCount;
+  stepLen = ((float)duration * 1000) / (float)totalSteps;
 
   unsigned long start = micros();
   restart: for (const auto& pair : target) { //sortedPairs) {
@@ -406,7 +411,8 @@ void outputLInterp(int env, bool analogOut, String pressed) {
     y1 = (float)pair.second.y;
 
     for (int xp=x0;xp < x1; xp++) {
-      for (float xpSub=xp;xpSub < (xp + 1); xpSub += timeDivisor) {
+      for (int sub = 0; sub < subSteps; sub++) {
+        float xpSub = xp + ((float)sub / subSteps);
 
         mcpTimeStart = micros();
         
@@ -498,9 +504,10 @@ void outputLInterp(int env, bool analogOut, String pressed) {
 
   // debug print for timing
 
-  Serial.printf("ENV number: %d following iterations: %d.  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d.\n",
-    env, 
-    iterations, 
+  Serial.printf("ENV number: %d following iterations: %d (expected %ld per pass).  microseconds per iteration %d.  total time in microseconds: %d. target duration in ms: %d. step length in microseconds: %d.\n",
+    env,
+    iterations,
+    totalSteps,
     ((mcpTimeEnd - mcpTimeStart)), 
     (endtime - start),
     duration,
