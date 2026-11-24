@@ -63,8 +63,13 @@ check_env() {
 do_compile() {
   check_env
   mkdir -p "$SKETCH" "$OUT"
-  ln -sfn "$REPO/envTwo.ino"   "$SKETCH/envTwo.ino"
-  ln -sfn "$REPO/Free_Fonts.h" "$SKETCH/Free_Fonts.h"
+  find "$SKETCH" -maxdepth 1 -type l -delete   # drop links to files that no longer exist
+  local f
+  for f in "$REPO"/*.ino "$REPO"/*.h "$REPO"/*.cpp; do
+    [ -e "$f" ] || continue
+    case "$(basename "$f")" in Setup_*) continue ;; esac   # TFT_eSPI config lives in the library
+    ln -sfn "$f" "$SKETCH/$(basename "$f")"
+  done
   arduino-cli compile -b "$FQBN" --warnings "${WARNINGS:-default}" --output-dir "$OUT" "$SKETCH"
   echo "UF2: $OUT/envTwo.ino.uf2"
 }
