@@ -34,7 +34,7 @@ ButtonWidget btnClear2 = ButtonWidget(&tft);
 ButtonWidget* btn[] = { &btnClear1, &btnClear2 };
 uint8_t buttonCount = sizeof(btn) / sizeof(btn[0]);
 
-uint16_t x, y = 0;  // touch x/y
+uint16_t x = 0, y = 0;  // touch x/y
 typedef struct {
   uint16_t x;
   uint16_t y;
@@ -55,7 +55,7 @@ uint16_t rectW;
 uint16_t rectH;
 
 int minLenMs = 6;
-int msLen1, msLen2, msLen1Last, msLen2Last = minLenMs;
+int msLen1 = minLenMs, msLen2 = minLenMs, msLen1Last = minLenMs, msLen2Last = minLenMs;
 
 MCP4822 MCP(255, 255, &SPI1);
 
@@ -67,9 +67,11 @@ Bounce2::Button b2 = Bounce2::Button();
 Bounce2::Button b3 = Bounce2::Button();
 Bounce2::Button b4 = Bounce2::Button();
 
-bool retrig1, retrig2 = false;
+bool retrig1 = false, retrig2 = false;
 
-bool envLoop1, envLoop2, envGate1, envGate2, envTrig1, envTrig2 = false;
+// written from the switch interrupt handlers, so they must be volatile
+volatile bool envLoop1 = false, envLoop2 = false, envGate1 = false, envGate2 = false;
+bool envTrig1 = false, envTrig2 = false;
 
 void setup() {
 
@@ -140,7 +142,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(12), checkPositionEnv2, CHANGE);
   attachInterrupt(digitalPinToInterrupt(13), checkPositionEnv2, CHANGE);
   encoder2 = new RotaryEncoder(12, 13, RotaryEncoder::LatchMode::FOUR0);
-  encoder2->setPosition(0);
+  encoder2->setPosition(minLenMs);
   
   // digital switches
 
@@ -191,8 +193,6 @@ void loop() {
 
   String buttonPressed = "";
 
-  uint16_t sx, sy, ex, ey = 0;
-
   // enable one-shot trigger mode if no other mode is active
   // envLoop1, envLoop2, envGate1, envGate2, envTrig1, envTrig2
   if (envLoop1 == false && envGate1 == false) {
@@ -213,10 +213,6 @@ void loop() {
       target = envelope1;
       whichEnv = 1;
       last = envelope1[0];
-      sx = env1CoordsStart.x;
-      sy = env1CoordsStart.y;
-      ex = env1CoordsEnd.x;
-      ey = env1CoordsEnd.y;
 
     // inside boundry of env 2
     } else if ((y > env2CoordsStart.y && y < outerRectEnd.y) && (x > env2CoordsStart.x && x < outerRectEnd.x)) {
@@ -224,16 +220,15 @@ void loop() {
       target = envelope2;
       whichEnv = 2;
       last = envelope2[0];
-      sx = env2CoordsStart.x;
-      sy = env2CoordsStart.y;
-      ex = env2CoordsEnd.x;
-      ey = env2CoordsEnd.y;
     }
 
-    tft.fillRect(sx, sy, ex, ey, TFT_BLACK);
-    for (const auto& pair : target) {
-      tft.drawWedgeLine(last.x, last.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
-      last = pair.second;
+    // only redraw when the touch landed inside one of the envelope areas
+    if (whichEnv != 0) {
+      clearEnvArea(whichEnv);
+      for (const auto& pair : target) {
+        tft.drawWedgeLine(last.x, last.y, pair.second.x, pair.second.y, 1, 1, TFT_MAGENTA, TFT_BLACK);
+        last = pair.second;
+      }
     }
   }
 
@@ -362,14 +357,14 @@ void outputLInterp(int env, bool analogOut, String pressed) {
   );
   */
 
-  float x0,y0,x1,y1,xp,yp,interval = 0.000;
+  float x0 = 0, y0 = 0, x1 = 0, y1 = 0, yp = 0;
   unsigned long stepLen;
 
   // debug
   unsigned long endtime = 0;
-  unsigned long mcpTimeStart, mcpTimeEnd = 0;
+  unsigned long mcpTimeStart = 0, mcpTimeEnd = 0;
 
-  bool b1Press, b2Press, b3Press, b4Press = false;
+  bool b1Press = false, b2Press = false, b3Press = false, b4Press = false;
 
   int iterations = 0;
 
@@ -398,12 +393,9 @@ void outputLInterp(int env, bool analogOut, String pressed) {
   }
 
   coords last = target[0];
-  auto it=target.end();
-  it--;
-  coords end=it->second;
 
   // calculate the duration of loop time in microseconds
-  stepLen = (((float)duration * 1000) / (float)loopCount) - (7 / 1000);
+  stepLen = ((float)duration * 1000) / (float)loopCount;
 
   unsigned long start = micros();
   restart: for (const auto& pair : target) { //sortedPairs) {
@@ -530,9 +522,9 @@ void drawDurationText() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setCursor(evnF1X, evnF1Y);
   tft.setTextFont(GLCD);
-  tft.print(msLen1 + 1);
+  tft.print(msLen1);
   tft.setCursor(evnF2X, evnF2Y);
-  tft.print(msLen2 + 1);
+  tft.print(msLen2);
 }
 
 void initEnvelopes() {
@@ -550,13 +542,25 @@ void initEnvelopes() {
   tft.drawRect(outerRectStart.x, outerRectStart.x, outerRectEnd.x, outerRectEnd.y, TFT_BLUE);
 }
 
+// Blank the drawing area of one envelope: everything inside the blue outer
+// border (drawn at x 2..outerRectEnd.x+1, y 2..outerRectEnd.y+1) and above
+// (env 1) or below (env 2) the blue middle bar. fillRect takes width/height,
+// not end coordinates.
+void clearEnvArea(int env) {
+  uint16_t left   = outerRectStart.x + 1;
+  uint16_t right  = outerRectEnd.x;             // last column inside the border
+  uint16_t top    = (env == 1) ? outerRectStart.y : (uint16_t)(innerRectStart.y + rectH);
+  uint16_t bottom = (env == 1) ? (uint16_t)(innerRectStart.y - 1) : outerRectEnd.y;
+  tft.fillRect(left, top, right - left + 1, bottom - top + 1, TFT_BLACK);
+}
+
 void btnClear1_pressAction(void) {
   if (btnClear1.justPressed()) {
     btnClear1.drawSmoothButton(!btnClear1.getState(), 1, TFT_MAGENTA, "clear ^");
     btnClear1.setPressTime(millis());
 
     // clear data
-    tft.fillRect(env1CoordsStart.x, env1CoordsStart.y, env1CoordsEnd.x, env1CoordsEnd.y, TFT_BLACK);
+    clearEnvArea(1);
     envelope1.clear();
     initEnvelopes();
 
@@ -571,7 +575,7 @@ void btnClear2_pressAction(void) {
     btnClear2.setPressTime(millis());
 
     // clear data
-    tft.fillRect(env2CoordsStart.x, env2CoordsStart.y, env2CoordsEnd.x, (env2CoordsEnd.y - env2CoordsStart.y) + 2, TFT_BLACK);
+    clearEnvArea(2);
     envelope2.clear();
     initEnvelopes();
 
@@ -588,8 +592,4 @@ void initButtons() {
   btnClear2.initButtonUL(tft.width() - (10 + BUTTON_W), innerRectStart.y + 2, BUTTON_W, BUTTON_H, TFT_MAGENTA, TFT_BLACK, TFT_MAGENTA, (char*)"clear v", 1);
   btnClear2.setPressAction(btnClear2_pressAction);
   btnClear2.drawSmoothButton(false, 1, TFT_BLACK);  // 3 is outline width, TFT_BLACK is the surrounding background colour for anti-aliasing
-}
-
-bool compareKeys(const std::pair<int, coords>& a, const std::pair<int, coords>& b) {
-    return a.first < b.first;
 }
