@@ -4,8 +4,10 @@
 #   ./build.sh                      compile only -> build/out/envTwo.ino.uf2
 #   ./build.sh upload [PORT]        compile, then upload (PORT default /dev/ttyACM0)
 #   ./build.sh setup                one-time install of the core + pinned libraries
-#   ./build.sh schematic            ERC-check kicad/envTwo.kicad_sch, then re-render
-#                                   envTwo_schematic.png from it (needs KiCad + pdftoppm)
+#   ./build.sh schematic            ERC-check both KiCad schematics, then re-render
+#                                   envTwo_schematic.png (kicad/envTwo.kicad_sch) and
+#                                   envTwo_schematic_wired.png (kicad/wired/envTwo_wired.kicad_sch)
+#                                   (needs KiCad + pdftoppm)
 #
 # arduino-cli requires the sketch folder name to match the .ino name, and this
 # repo is checked out as "env-two", so we compile from build/envTwo/, a folder of
@@ -81,26 +83,37 @@ need_arduino_cli() {
 
 # Re-render the README schematic image from the KiCad project. Temp files go
 # in build/ (inside the repo) because the KiCad snap cannot write to /tmp.
-do_schematic() {
-  local kcli sch="$REPO/kicad/envTwo.kicad_sch" tmp="$REPO/build/schematic"
-  kcli="$(command -v kicad-cli || true)"
-  [ -n "$kcli" ] || { [ -x /snap/bin/kicad.kicad-cli ] && kcli=/snap/bin/kicad.kicad-cli; }
-  [ -n "$kcli" ] || die "kicad-cli not found (install KiCad 9)"
+KCLI=""
+find_kicad_cli() {
+  KCLI="$(command -v kicad-cli || true)"
+  [ -n "$KCLI" ] || { [ -x /snap/bin/kicad.kicad-cli ] && KCLI=/snap/bin/kicad.kicad-cli; }
+  [ -n "$KCLI" ] || die "kicad-cli not found (install KiCad 9)"
   command -v pdftoppm >/dev/null || die "pdftoppm not found (apt package poppler-utils)"
+}
+
+# export_schematic SCHEMATIC PNG_NAME DPI: ERC-check one schematic, render it to $REPO/PNG_NAME
+export_schematic() {
+  local sch="$1" name="$2" dpi="$3" tmp="$REPO/build/schematic"
   [ -f "$sch" ] || die "missing $sch"
   mkdir -p "$tmp"
-
   # errors only: the 'library not in sym-lib-table' items are warnings, and the
   # symbols are embedded in the schematic anyway
-  if ! "$kcli" sch erc --severity-error --exit-code-violations -o "$tmp/erc.rpt" "$sch" >/dev/null; then
+  if ! "$KCLI" sch erc --severity-error --exit-code-violations -o "$tmp/erc.rpt" "$sch" >/dev/null; then
     cat "$tmp/erc.rpt" >&2
-    die "ERC found errors - fix them before exporting (report: $tmp/erc.rpt)"
+    die "ERC found errors in $(basename "$sch") - fix them before exporting (report: $tmp/erc.rpt)"
   fi
-  "$kcli" sch export pdf -o "$tmp/envTwo.pdf" "$sch" >/dev/null
-  # A3 at 210 dpi ~ 3470x2460 px, about the size of the original 2023 image
-  pdftoppm -png -r 210 -singlefile "$tmp/envTwo.pdf" "$tmp/envTwo_schematic"
-  mv "$tmp/envTwo_schematic.png" "$REPO/envTwo_schematic.png"
-  echo "ERC clean; wrote $REPO/envTwo_schematic.png"
+  "$KCLI" sch export pdf -o "$tmp/$name.pdf" "$sch" >/dev/null
+  pdftoppm -png -r "$dpi" -singlefile "$tmp/$name.pdf" "$tmp/$name"
+  mv "$tmp/$name.png" "$REPO/$name.png"
+  echo "ERC clean; wrote $REPO/$name.png"
+}
+
+do_schematic() {
+  find_kicad_cli
+  # label-based schematic, A3 at 210 dpi (~3470x2460 px)
+  export_schematic "$REPO/kicad/envTwo.kicad_sch" envTwo_schematic 210
+  # wired redraw in the 2023 layout, A4 at 300 dpi (3508x2480 px, the 2023 image size)
+  export_schematic "$REPO/kicad/wired/envTwo_wired.kicad_sch" envTwo_schematic_wired 300
 }
 
 case "${1:-compile}" in

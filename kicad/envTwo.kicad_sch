@@ -11355,7 +11355,7 @@
 		)
 		(uuid "f15918ce-f6eb-4ffc-b8fc-16e52b2addcc")
 	)
-	(text "Changes from the 2023 PNG:\n - J4 pin 8 (Pico pin 28 = GND) moved from +3V3 to GND (the PNG shorted 3V3 to GND here).\n - Output stage A (U3A -> J13, envelope 1) is fed from DAC VA (U4 pin 8), the channel the firmware drives.\n - Added output stage B (U3B -> J14, envelope 2) from DAC VB (U4 pin 6): a copy of stage A (R12-R16, C5, C6).\nUnchanged: C2 (100nF) sits from the inverting input to GND in parallel with R7; C5 mirrors it in stage B."
+	(text "Changes from the 2023 PNG:\n - J4 pin 8 (Pico pin 28) tied to GND; the PNG left every Pico GND pin unconnected.\n - Output stage A (U3A -> J13, envelope 1) is fed from DAC VA (U4 pin 8), the channel the firmware drives.\n - Added output stage B (U3B -> J14, envelope 2) from DAC VB (U4 pin 6): a copy of stage A (R12-R16, C5, C6).\nUnchanged: C2 (100nF) sits from the inverting input to GND in parallel with R7; C5 mirrors it in stage B."
 		(exclude_from_sim no)
 		(at 15.24 147.32 0)
 		(effects
